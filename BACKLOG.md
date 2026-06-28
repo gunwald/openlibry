@@ -40,3 +40,20 @@ on the branch. Fix them separately so the feature branch stays scoped.
   (nothing references `/api/db/reconnect`; `LogEvents.DB_RECONNECTED` and
   `entities/db.ts` `reconnectPrisma()` are separate and intact). No action
   needed beyond noting the scope mix; listed for traceability.
+
+## AI-tagging feature ideas (parked — need validation before shipping)
+
+- **Cross-domain specificity prompt rule ("3b").** A SYSTEM_PROMPT bullet telling
+  the model that a broad domain tag (e.g. `Kunstgeschichte`) belongs only on a
+  book genuinely *about* that domain, not on a general history/archaeology work
+  that merely touches it — and not just because neighbour books carry it. The
+  motivating failure (`Kunstgeschichte` leaking onto world-history books) is
+  **stochastic**: it showed up in one manual run but did not reproduce across
+  four graded benchmark runs (enriched and cold, with and without the rule), so
+  the rule had **no measurable effect** and was dropped rather than shipped
+  unvalidated. → Before re-adding, build an **N-run leak-frequency harness**
+  (run the leak-prone rows ~10× each, count how often the bad tag appears) so a
+  stochastic fix can be measured against a stochastic baseline. Only re-add the
+  rule if it cuts the measured leak rate without lowering must-include recall.
+  Context: evidence-tier reconciliation + the Region/grounding off-style
+  carve-out already shipped on `441-ai-tag-suggestions` (commit `a9ade92`).
