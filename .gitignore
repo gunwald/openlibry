@@ -116,3 +116,5 @@ public/~$hnung-template.docx
 
 # ─── MkDocs build output ───────────────────────────────────────────
 doc/mkdocs/site/
+# Local data backups (scripts/backup.sh)
+backups/
