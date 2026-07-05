@@ -1,10 +1,40 @@
 import { PublicBookDetailType } from "@/entities/PublicBookDetailType";
 import { PublicBookType } from "@/entities/PublicBookType";
-import { PrismaClient } from "@prisma/client";
+import { Prisma, PrismaClient } from "@prisma/client";
 
 const RELATED_LIMIT = 5;
+// Bound on rows fetched for related-book ranking. Ranking beyond this many
+// candidates is approximate, which is acceptable for a 5-item suggestion list.
+const RELATED_CANDIDATE_LIMIT = 200;
 
-function parseTopics(raw: string | null | undefined): string[] {
+/**
+ * The Prisma `select` counterpart of PublicBookType: the only book fields that
+ * may be fetched for unauthenticated responses. Keep in sync with that type.
+ */
+export const PUBLIC_BOOK_SELECT = {
+  id: true,
+  title: true,
+  author: true,
+  isbn: true,
+  topics: true,
+  rentalStatus: true,
+} satisfies Prisma.BookSelect;
+
+type PublicBookRow = Prisma.BookGetPayload<{ select: typeof PUBLIC_BOOK_SELECT }>;
+
+export function toPublicBook(b: PublicBookRow): PublicBookType {
+  return {
+    id: b.id,
+    title: b.title,
+    author: b.author,
+    isbn: b.isbn,
+    topics: b.topics,
+    rentalStatus: b.rentalStatus,
+    coverUrl: `/api/images/${b.id}`,
+  };
+}
+
+export function parseTopics(raw: string | null | undefined): string[] {
   if (!raw) return [];
   return raw
     .split(";")
@@ -28,12 +58,7 @@ export async function getPublicBookDetail(
   const book = await client.book.findUnique({
     where: { id },
     select: {
-      id: true,
-      title: true,
-      author: true,
-      isbn: true,
-      topics: true,
-      rentalStatus: true,
+      ...PUBLIC_BOOK_SELECT,
       subtitle: true,
       summary: true,
       publisherName: true,
@@ -55,14 +80,8 @@ export async function getPublicBookDetail(
         id: { not: id },
         OR: topics.map((topic) => ({ topics: { contains: topic } })),
       },
-      select: {
-        id: true,
-        title: true,
-        author: true,
-        isbn: true,
-        topics: true,
-        rentalStatus: true,
-      },
+      select: PUBLIC_BOOK_SELECT,
+      take: RELATED_CANDIDATE_LIMIT,
     });
 
     relatedBooks = candidates
@@ -72,25 +91,11 @@ export async function getPublicBookDetail(
       }))
       .sort((a, b) => b.shared - a.shared)
       .slice(0, RELATED_LIMIT)
-      .map(({ book: b }) => ({
-        id: b.id,
-        title: b.title,
-        author: b.author,
-        isbn: b.isbn,
-        topics: b.topics,
-        rentalStatus: b.rentalStatus,
-        coverUrl: `/api/images/${b.id}`,
-      }));
+      .map(({ book: b }) => toPublicBook(b));
   }
 
   return {
-    id: book.id,
-    title: book.title,
-    author: book.author,
-    isbn: book.isbn,
-    topics: book.topics,
-    rentalStatus: book.rentalStatus,
-    coverUrl: `/api/images/${book.id}`,
+    ...toPublicBook(book),
     subtitle: book.subtitle,
     summary: book.summary,
     publisherName: book.publisherName,

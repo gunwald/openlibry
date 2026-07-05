@@ -3,14 +3,9 @@ import Layout from "@/components/layout/Layout";
 import { BookType } from "@/entities/BookType";
 import { PublicBookDetailType } from "@/entities/PublicBookDetailType";
 import { PublicBookType } from "@/entities/PublicBookType";
-import { prisma } from "@/entities/db";
-import { getPublicBookDetail } from "@/entities/publicBook";
+import { prisma, reconnectPrisma } from "@/entities/db";
+import { getPublicBookDetail, parseTopics } from "@/entities/publicBook";
 import { translations } from "@/entities/fieldTranslations";
-
-function parseTopics(raw: string | null | undefined): string[] {
-  if (!raw) return [];
-  return raw.split(";").map((t) => t.trim()).filter(Boolean);
-}
 import { t } from "@/lib/i18n";
 import { ArrowLeft, BookOpen, Calendar, Hash, Tag, Users } from "lucide-react";
 import { GetServerSideProps, GetServerSidePropsContext } from "next";
@@ -325,6 +320,10 @@ export const getServerSideProps: GetServerSideProps = async (
   const id = parseInt(context.params?.id as string, 10);
   if (Number.isNaN(id)) {
     return { notFound: true };
+  }
+
+  if (process.env.NODE_ENV !== "production") {
+    await reconnectPrisma();
   }
 
   try {
