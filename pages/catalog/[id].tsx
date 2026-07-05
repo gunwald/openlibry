@@ -3,6 +3,8 @@ import Layout from "@/components/layout/Layout";
 import { BookType } from "@/entities/BookType";
 import { PublicBookDetailType } from "@/entities/PublicBookDetailType";
 import { PublicBookType } from "@/entities/PublicBookType";
+import { prisma } from "@/entities/db";
+import { getPublicBookDetail } from "@/entities/publicBook";
 import { translations } from "@/entities/fieldTranslations";
 
 function parseTopics(raw: string | null | undefined): string[] {
@@ -320,19 +322,20 @@ export default function CatalogDetailPage({ book }: CatalogDetailProps) {
 export const getServerSideProps: GetServerSideProps = async (
   context: GetServerSidePropsContext,
 ) => {
-  const host = context.req.headers.host ?? "localhost:3000";
-  const baseUrl = `http://${host}`;
-
-  const id = context.params?.id as string;
+  const id = parseInt(context.params?.id as string, 10);
+  if (Number.isNaN(id)) {
+    return { notFound: true };
+  }
 
   try {
-    const res = await fetch(`${baseUrl}/api/public/books/${id}`);
-
-    if (!res.ok) {
+    // Read the DB directly rather than fetching our own API over HTTP: the
+    // self-fetch broke under HTTPS (an http:// request against an https:// port)
+    // and is a needless round-trip. getPublicBookDetail applies the same public
+    // field whitelist the API uses.
+    const book = await getPublicBookDetail(prisma, id);
+    if (!book) {
       return { notFound: true };
     }
-
-    const book: PublicBookDetailType = await res.json();
     return { props: { book } };
   } catch (error) {
     console.error("Error fetching catalog book detail:", error);
