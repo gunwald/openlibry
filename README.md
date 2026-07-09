@@ -70,25 +70,6 @@ Zurück auf das offizielle Release geht es genauso: Image wieder auf `jzakotnik/
 
 ---
 
-## 🚀 Quickstart
-
-Mit Docker kannst du OpenLibry in wenigen Sekunden ausprobieren:
-
-```bash
-docker run --rm -p 3000:3000 \
-  --name openlibry \
-  -e NEXTAUTH_SECRET=wunschpunsch \
-  -e SECURITY_HEADERS=insecure \
-  -e COVERIMAGE_FILESTORAGE_PATH=/app/database \
-  jzakotnik/openlibry:release
-```
-
-Öffne [http://localhost:3000](http://localhost:3000) – fertig!
-
-> ⚠️ **Hinweis**: Dies ist zum Ausprobieren gedacht. Die Daten werden nach Beendigung gelöscht. Für eine produktive Installation siehe die [Installationsanleitung](https://openlibry.de/site/installation/).
-
----
-
 ## ✨ Features
 
 | Feature | Beschreibung |
