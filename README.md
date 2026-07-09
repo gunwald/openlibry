@@ -14,6 +14,62 @@ OpenLibry ist eine moderne, benutzerfreundliche Open-Source-Lösung für kleine 
 
 ---
 
+## Test-Release aus diesem Fork
+
+Dieser Branch ist kein offizielles OpenLibry-Release. Er ist ein Teststand aus dem Fork `gunwald/openlibry`, in dem mehrere noch nicht gemergte Pull Requests zusammengeführt sind, damit man sie gemeinsam ausprobieren kann.
+
+Das Docker-Image dazu ist:
+
+```text
+gunwald/openlibry:test-release-open-prs-2026-07-09
+```
+
+Zum schnellen lokalen Testen:
+
+```bash
+docker run --rm -p 3000:3000 \
+  --name openlibry-test-release \
+  -e NEXTAUTH_SECRET=wunschpunsch \
+  -e SECURITY_HEADERS=insecure \
+  -e COVERIMAGE_FILESTORAGE_PATH=/app/database \
+  gunwald/openlibry:test-release-open-prs-2026-07-09
+```
+
+Öffne danach [http://localhost:3000](http://localhost:3000).
+
+Wenn schon eine Installation mit dem offiziellen Image läuft, ändere nur den Image-Namen von:
+
+```text
+jzakotnik/openlibry:release
+```
+
+auf:
+
+```text
+gunwald/openlibry:test-release-open-prs-2026-07-09
+```
+
+Bei Docker Compose sieht das zum Beispiel so aus:
+
+```yaml
+services:
+  openlibry:
+    image: gunwald/openlibry:test-release-open-prs-2026-07-09
+```
+
+Danach neu ziehen und starten:
+
+```bash
+docker compose pull openlibry
+docker compose up -d openlibry
+```
+
+Vor einem Wechsel von einer produktiven Installation bitte ein Backup der Datenbank und des `database`-Ordners machen. Dieser Teststand ist dafür gedacht, mehrere offene Änderungen zusammen zu testen, nicht als dauerhaftes stabiles Release.
+
+Zurück auf das offizielle Release geht es genauso: Image wieder auf `jzakotnik/openlibry:release` ändern, neu ziehen und den Container neu starten.
+
+---
+
 ## 🚀 Quickstart
 
 Mit Docker kannst du OpenLibry in wenigen Sekunden ausprobieren:
