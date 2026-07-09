@@ -1245,6 +1245,9 @@ export const de = {
     imprint: "Impressum",
     privacy: "Datenschutz",
   },
+  catalogPage: {
+    manage: "Verwalten",
+  },
 
   // ─── ISBN lookup API error messages ──────────────────────────────────
   // Used in pages/api/book/FillBookByIsbn.ts.
