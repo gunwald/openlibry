@@ -66,6 +66,32 @@ docker compose up -d openlibry
 
 Vor einem Wechsel von einer produktiven Installation bitte ein Backup der Datenbank und des `database`-Ordners machen. Dieser Teststand ist dafür gedacht, mehrere offene Änderungen zusammen zu testen, nicht als dauerhaftes stabiles Release.
 
+Dieser Branch bringt dafür einfache Skripte mit. Wenn deine Docker-Installation wie in der OpenLibry-Doku ein lokales `database/`-Verzeichnis nutzt, kannst du im Projektordner vor dem Wechsel ausführen:
+
+```bash
+./scripts/backup.sh
+```
+
+Das legt ein Archiv unter `backups/` an. Darin steckt der komplette OpenLibry-Datenordner, also `dev.db`, Cover-Bilder und eigene Dateien unter `custom/`.
+
+Wenn dein Datenordner woanders liegt:
+
+```bash
+OPENLIBRY_DATA_DIR=/pfad/zum/openlibry/database ./scripts/backup.sh
+```
+
+Wenn du nur an den laufenden Container kommst:
+
+```bash
+OPENLIBRY_CONTAINER=openlibry ./scripts/backup.sh
+```
+
+Für ein Restore OpenLibry vorher stoppen und dann:
+
+```bash
+./scripts/restore.sh backups/openlibry-backup-DATUM.tar.gz
+```
+
 Zurück auf das offizielle Release geht es genauso: Image wieder auf `jzakotnik/openlibry:release` ändern, neu ziehen und den Container neu starten.
 
 ---

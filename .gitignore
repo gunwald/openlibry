@@ -121,3 +121,6 @@ public/~$hnung-template.docx
 doc/mkdocs/site/
 # AI tagging facet cache (regenerable, local)
 database/custom/ai-tag-facets.json
+
+# Local data backups (scripts/backup.sh)
+backups/
