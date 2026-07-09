@@ -21,7 +21,11 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+if [ "$(basename "$SCRIPT_DIR")" = "scripts" ]; then
+  ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+else
+  ROOT="$SCRIPT_DIR"
+fi
 cd "$ROOT"
 
 usage() {
