@@ -10,15 +10,6 @@ type ErrorData = {
   result: string;
 };
 
-function getSingleQueryValue(value: string | string[] | undefined): string {
-  return Array.isArray(value) ? value[0] ?? "" : value ?? "";
-}
-
-function getPositiveInt(value: string | string[] | undefined): number | null {
-  const parsed = parseInt(getSingleQueryValue(value), 10);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
-}
-
 /**
  * GET /api/public/books
  *

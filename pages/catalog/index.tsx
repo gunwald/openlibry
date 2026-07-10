@@ -5,9 +5,12 @@ import { getPagedPublicBooks } from "@/entities/book";
 import { BookType } from "@/entities/BookType";
 import { prisma } from "@/entities/db";
 import { PublicBookType } from "@/entities/PublicBookType";
+import { t } from "@/lib/i18n";
 import { LogEvents } from "@/lib/logEvents";
 import { errorLogger } from "@/lib/logger";
+import { Settings } from "lucide-react";
 import { GetServerSideProps, GetServerSidePropsContext } from "next";
+import Link from "next/link";
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
 
@@ -187,6 +190,15 @@ export default function Catalog({
 
   return (
     <Layout publicView={true}>
+      <div className="flex justify-end pt-4">
+        <Link
+          href="/manage"
+          className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-muted-foreground shadow-sm transition-colors hover:bg-muted hover:text-foreground"
+        >
+          <Settings className="h-4 w-4" />
+          {t("catalogPage.manage")}
+        </Link>
+      </div>
       <BookSearchBar
         handleInputChange={handleInputChangeEvent}
         handleNewBook={noop}

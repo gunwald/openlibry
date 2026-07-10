@@ -1188,6 +1188,9 @@ export const en: Dictionary = {
     imprint: "Legal notice",
     privacy: "Privacy",
   },
+  catalogPage: {
+    manage: "Manage",
+  },
 
   // ─── ISBN lookup API error messages ──────────────────────────────────
   // Used in pages/api/book/FillBookByIsbn.ts.
