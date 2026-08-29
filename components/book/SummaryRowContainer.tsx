@@ -1,23 +1,23 @@
 import BookSummaryRow from "@/components/book/BookSummaryRow";
+import PaginationControls from "@/components/book/PaginationControls";
 import { BookType } from "@/entities/BookType";
-import { t } from "@/lib/i18n";
 import { memo, useMemo } from "react";
 
 type SummaryBook = BookType & { copyCount?: number };
 
 interface SummaryRowContainerProps {
   renderedBooks: SummaryBook[];
-  totalBooks: number;
-  maxBooks: number;
-  onLoadMore: () => void;
+  page: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
   onCopyBook: (book: BookType) => void;
 }
 
 const SummaryRowContainer = memo(function SummaryRowContainer({
   renderedBooks,
-  totalBooks,
-  maxBooks,
-  onLoadMore,
+  page,
+  totalPages,
+  onPageChange,
   onCopyBook,
 }: SummaryRowContainerProps) {
   const groupedBooks = useMemo(() => {
@@ -41,8 +41,6 @@ const SummaryRowContainer = memo(function SummaryRowContainer({
     });
   }, [renderedBooks]);
 
-  const visibleLimit = Math.min(totalBooks, maxBooks);
-
   return (
     <div className="flex flex-col gap-2 w-full">
       {groupedBooks.map(({ book, count }) => (
@@ -53,17 +51,11 @@ const SummaryRowContainer = memo(function SummaryRowContainer({
           handleCopyBook={() => onCopyBook(book)}
         />
       ))}
-      {visibleLimit - renderedBooks.length > 0 && (
-        <div className="flex justify-center mt-4">
-          <button
-            onClick={onLoadMore}
-            className="px-4 py-2 text-sm font-medium text-primary hover:bg-primary/10 rounded-lg transition-colors"
-          >
-            {t("bookPage.loadMore")}{" "}
-            {Math.max(0, visibleLimit - renderedBooks.length)}
-          </button>
-        </div>
-      )}
+      <PaginationControls
+        page={page}
+        totalPages={totalPages}
+        onPageChange={onPageChange}
+      />
     </div>
   );
 });
