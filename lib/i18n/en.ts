@@ -269,7 +269,6 @@ export const en: Dictionary = {
     toastCreateNewBook: "Create new book - please enter data or scan an ISBN",
     toastBookReturned: "Book returned",
     toastReturnError: "Error returning the book",
-    loadMore: "More books...",
     isbnCopies: "{{count}} copies with this ISBN",
   },
 
@@ -1126,6 +1125,12 @@ export const en: Dictionary = {
   rentalsServerError: {
     invalidServerData: "Received invalid data from the server",
     fetchFailed: "Error loading rental data",
+  },
+
+  pagination: {
+    previousPage: "Previous",
+    nextPage: "Next",
+    pageIndicator: "Page {page} of {total}",
   },
 
   // ─── Catalog detail page ─────────────────────────────────────────────

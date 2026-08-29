@@ -1,5 +1,6 @@
 import BookSearchBar from "@/components/book/BookSearchBar";
 import BookSummaryCard from "@/components/book/BookSummaryCard";
+import PaginationControls from "@/components/book/PaginationControls";
 import Layout from "@/components/layout/Layout";
 import { getPagedPublicBooks } from "@/entities/book";
 import { BookType } from "@/entities/BookType";
@@ -72,19 +73,18 @@ function toCardBook(b: PublicBookType | CatalogBookType): CatalogBookType {
 
 interface CatalogCardGridProps {
   renderedBooks: BookType[];
-  totalBooks: number;
-  maxBooks: number;
-  onLoadMore: () => void;
+  page: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
 }
 
 const CatalogCardGrid = memo(function CatalogCardGrid({
   renderedBooks,
-  totalBooks,
-  maxBooks,
-  onLoadMore,
+  page,
+  totalPages,
+  onPageChange,
 }: CatalogCardGridProps) {
   const noop = useCallback(() => {}, []);
-  const visibleLimit = Math.min(totalBooks, maxBooks);
 
   return (
     <div>
@@ -102,16 +102,11 @@ const CatalogCardGrid = memo(function CatalogCardGrid({
           />
         ))}
       </div>
-      {visibleLimit - renderedBooks.length > 0 && (
-        <div className="flex justify-center mt-4">
-          <button
-            onClick={onLoadMore}
-            className="px-4 py-2 text-sm font-medium text-primary hover:bg-primary/10 rounded-lg transition-colors"
-          >
-            Weitere Bücher… {Math.max(0, visibleLimit - renderedBooks.length)}
-          </button>
-        </div>
-      )}
+      <PaginationControls
+        page={page}
+        totalPages={totalPages}
+        onPageChange={onPageChange}
+      />
     </div>
   );
 });
@@ -129,25 +124,28 @@ export default function Catalog({
 }: CatalogPropsType) {
   const [bookSearchInput, setBookSearchInput] = useState(initialSearch);
   const [serverSearch, setServerSearch] = useState(initialSearch);
-  const [pageSize, setPageSize] = useState(numberBooksToShow);
+  // One page is on screen at a time. Growing a page size instead would keep
+  // every card already seen mounted, and the cost of scrolling and typing
+  // grows with it: a few hundred cards is enough to make the page feel slow.
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     const id = setTimeout(() => {
       setServerSearch(bookSearchInput);
-      setPageSize(numberBooksToShow);
+      setPage(1);
     }, 150);
 
     return () => clearTimeout(id);
-  }, [bookSearchInput, numberBooksToShow]);
+  }, [bookSearchInput]);
 
   const requestUrl = useMemo(() => {
     const params = new URLSearchParams({
-      page: "1",
-      pageSize: Math.min(pageSize, maxBooks).toString(),
+      page: String(page),
+      pageSize: Math.min(numberBooksToShow, maxBooks).toString(),
     });
     if (serverSearch.trim()) params.set("q", serverSearch.trim());
     return `/api/public/books?${params.toString()}`;
-  }, [pageSize, maxBooks, serverSearch]);
+  }, [page, numberBooksToShow, maxBooks, serverSearch]);
 
   const { data } = useSWR<PagedCatalogResponse>(requestUrl, fetcher, {
     fallbackData: {
@@ -156,9 +154,9 @@ export default function Catalog({
       page: 1,
       pageSize: numberBooksToShow,
     },
-    // Without this, every key change (new search term, larger pageSize from
-    // "load more") would fall back to the initial unfiltered page-1 data
-    // while the fetch is in flight — a visible flash of wrong results.
+    // Without this, every key change (new search term, another page) would
+    // fall back to the initial unfiltered page-1 data while the fetch is in
+    // flight — a visible flash of wrong results.
     keepPreviousData: true,
     refreshInterval: 0,
     revalidateOnFocus: false,
@@ -179,9 +177,24 @@ export default function Catalog({
     [],
   );
 
-  const handleLoadMore = useCallback(() => {
-    setPageSize((prev) => Math.min(prev + numberBooksToShow, maxBooks));
-  }, [numberBooksToShow, maxBooks]);
+  const pageSize = Math.min(numberBooksToShow, maxBooks);
+  const totalPages = Math.max(
+    1,
+    Math.ceil(Math.min(resultCount, maxBooks) / pageSize),
+  );
+
+  // A shrinking result set (a narrower search) can leave us past the end.
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+
+  const handlePageChange = useCallback(
+    (next: number) => {
+      setPage(next);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    },
+    [],
+  );
 
   const noop = useCallback(() => {}, []);
 
@@ -199,9 +212,9 @@ export default function Catalog({
       />
       <CatalogCardGrid
         renderedBooks={books}
-        totalBooks={resultCount}
-        maxBooks={maxBooks}
-        onLoadMore={handleLoadMore}
+        page={page}
+        totalPages={totalPages}
+        onPageChange={handlePageChange}
       />
     </Layout>
   );

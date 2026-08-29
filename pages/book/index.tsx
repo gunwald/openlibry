@@ -6,6 +6,7 @@ import useSWR from "swr";
 
 import BookSearchBar from "@/components/book/BookSearchBar";
 import BookSummaryCard from "@/components/book/BookSummaryCard";
+import PaginationControls from "@/components/book/PaginationControls";
 
 import SummaryRowContainer from "@/components/book/SummaryRowContainer";
 import { BookType } from "@/entities/BookType";
@@ -25,9 +26,9 @@ interface BookPropsType {
 
 interface DetailCardContainerProps {
   renderedBooks: BookType[];
-  totalBooks: number;
-  maxBooks: number;
-  onLoadMore: () => void;
+  page: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
   onReturnBook: (id: number, userId: number) => void;
   onTopicClick: (topic: string) => void;
 }
@@ -36,14 +37,12 @@ const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 const DetailCardContainer = memo(function DetailCardContainer({
   renderedBooks,
-  totalBooks,
-  maxBooks,
-  onLoadMore,
+  page,
+  totalPages,
+  onPageChange,
   onReturnBook,
   onTopicClick,
 }: DetailCardContainerProps) {
-  const visibleLimit = Math.min(totalBooks, maxBooks);
-
   return (
     <div>
       <div
@@ -59,17 +58,11 @@ const DetailCardContainer = memo(function DetailCardContainer({
           />
         ))}
       </div>
-      {visibleLimit - renderedBooks.length > 0 && (
-        <div className="flex justify-center mt-4">
-          <button
-            onClick={onLoadMore}
-            className="px-4 py-2 text-sm font-medium text-primary hover:bg-primary/10 rounded-lg transition-colors"
-          >
-            {t("bookPage.loadMore")}{" "}
-            {Math.max(0, visibleLimit - renderedBooks.length)}
-          </button>
-        </div>
-      )}
+      <PaginationControls
+        page={page}
+        totalPages={totalPages}
+        onPageChange={onPageChange}
+      />
     </div>
   );
 });
@@ -89,34 +82,37 @@ export default function Books({
   const { query } = useRouter();
   const [bookSearchInput, setBookSearchInput] = useState(initialSearch);
   const [serverSearch, setServerSearch] = useState(initialSearch);
-  const [pageSize, setPageSize] = useState(numberBooksToShow);
+  // One page on screen at a time. Growing the page size instead would keep
+  // every card already seen mounted, and scrolling and typing get slower the
+  // longer the list is used.
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     if (typeof query.q === "string" && query.q) {
       setBookSearchInput(query.q);
       setServerSearch(query.q);
-      setPageSize(numberBooksToShow);
+      setPage(1);
       setDetailView(true);
     }
-  }, [query.q, numberBooksToShow]);
+  }, [query.q]);
 
   useEffect(() => {
     const id = setTimeout(() => {
       setServerSearch(bookSearchInput);
-      setPageSize(numberBooksToShow);
+      setPage(1);
     }, 150);
 
     return () => clearTimeout(id);
-  }, [bookSearchInput, numberBooksToShow]);
+  }, [bookSearchInput]);
 
   const requestUrl = useMemo(() => {
     const params = new URLSearchParams({
-      page: "1",
-      pageSize: Math.min(pageSize, maxBooks).toString(),
+      page: String(page),
+      pageSize: Math.min(numberBooksToShow, maxBooks).toString(),
     });
     if (serverSearch.trim()) params.set("q", serverSearch.trim());
     return `/api/book?${params.toString()}`;
-  }, [pageSize, maxBooks, serverSearch]);
+  }, [page, numberBooksToShow, maxBooks, serverSearch]);
 
   const { data: freshData, mutate } = useSWR<PagedBooks>(requestUrl, fetcher, {
     fallbackData: {
@@ -125,9 +121,9 @@ export default function Books({
       page: 1,
       pageSize: numberBooksToShow,
     },
-    // Without this, every key change (new search term, larger pageSize from
-    // "load more") would fall back to the initial unfiltered page-1 data
-    // while the fetch is in flight — a visible flash of wrong results.
+    // Without this, every key change (new search term, another page) would
+    // fall back to the initial unfiltered page-1 data while the fetch is in
+    // flight — a visible flash of wrong results.
     keepPreviousData: true,
     refreshInterval: 0,
     revalidateOnFocus: true,
@@ -208,18 +204,28 @@ export default function Books({
     setDetailView((prev) => !prev);
   }, []);
 
-  const handleLoadMore = useCallback(() => {
-    setPageSize((prev) => Math.min(prev + numberBooksToShow, maxBooks));
-  }, [numberBooksToShow, maxBooks]);
-  const handleTopicClick = useCallback(
-    (topic: string) => {
-      setBookSearchInput(topic);
-      setServerSearch(topic);
-      setDetailView(true);
-      setPageSize(numberBooksToShow);
-    },
-    [numberBooksToShow],
+  const pageSize = Math.min(numberBooksToShow, maxBooks);
+  const totalPages = Math.max(
+    1,
+    Math.ceil(Math.min(resultCount, maxBooks) / pageSize),
   );
+
+  // A shrinking result set (a narrower search) can leave us past the end.
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+
+  const handlePageChange = useCallback((next: number) => {
+    setPage(next);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
+
+  const handleTopicClick = useCallback((topic: string) => {
+    setBookSearchInput(topic);
+    setServerSearch(topic);
+    setDetailView(true);
+    setPage(1);
+  }, []);
 
   return (
     <Layout>
@@ -234,18 +240,18 @@ export default function Books({
       {detailView ? (
         <DetailCardContainer
           renderedBooks={renderedBooks}
-          totalBooks={resultCount}
-          maxBooks={maxBooks}
-          onLoadMore={handleLoadMore}
+          page={page}
+          totalPages={totalPages}
+          onPageChange={handlePageChange}
           onReturnBook={handleReturnBook}
           onTopicClick={handleTopicClick}
         />
       ) : (
         <SummaryRowContainer
           renderedBooks={renderedBooks}
-          totalBooks={resultCount}
-          maxBooks={maxBooks}
-          onLoadMore={handleLoadMore}
+          page={page}
+          totalPages={totalPages}
+          onPageChange={handlePageChange}
           onCopyBook={handleCopyBook}
         />
       )}

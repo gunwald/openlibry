@@ -278,7 +278,6 @@ export const de = {
       "Neues Buch erstellen - bitte Daten eingeben oder ISBN scannen",
     toastBookReturned: "Buch zurückgegeben",
     toastReturnError: "Fehler beim Zurückgeben des Buches",
-    loadMore: "Weitere Bücher...",
     isbnCopies: "{{count}} Exemplare mit dieser ISBN",
   },
 
@@ -1217,6 +1216,13 @@ export const de = {
   rentalsServerError: {
     invalidServerData: "Ungültige Daten vom Server erhalten",
     fetchFailed: "Fehler beim Laden der Ausleihdaten",
+  },
+
+  // ─── Pagination (catalog and book list) ──────────────────────────────
+  pagination: {
+    previousPage: "Zurück",
+    nextPage: "Weiter",
+    pageIndicator: "Seite {page} von {total}",
   },
 
   // ─── Catalog detail page ─────────────────────────────────────────────
