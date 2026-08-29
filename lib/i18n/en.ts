@@ -303,7 +303,6 @@ export const en: Dictionary = {
       "Data copied from the original book — check it, then save",
     toastBookReturned: "Book returned",
     toastReturnError: "Error returning the book",
-    loadMore: "More books...",
     isbnCopies: "{{count}} copies with this ISBN",
   },
 
@@ -1175,6 +1174,12 @@ export const en: Dictionary = {
   rentalsServerError: {
     invalidServerData: "Received invalid data from the server",
     fetchFailed: "Error loading rental data",
+  },
+
+  pagination: {
+    previousPage: "Previous",
+    nextPage: "Next",
+    pageIndicator: "Page {page} of {total}",
   },
 
   // ─── Catalog detail page ─────────────────────────────────────────────
