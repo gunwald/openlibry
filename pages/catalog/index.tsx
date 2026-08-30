@@ -1,8 +1,9 @@
 import BookSearchBar from "@/components/book/BookSearchBar";
 import BookSummaryCard from "@/components/book/BookSummaryCard";
+import FacetBar from "@/components/book/FacetBar";
 import PaginationControls from "@/components/book/PaginationControls";
 import Layout from "@/components/layout/Layout";
-import { getPagedPublicBooks } from "@/entities/book";
+import { getPagedPublicBooks, TopicFacet } from "@/entities/book";
 import { BookType } from "@/entities/BookType";
 import { prisma } from "@/entities/db";
 import { PublicBookType } from "@/entities/PublicBookType";
@@ -26,6 +27,7 @@ interface CatalogPropsType {
   numberBooksToShow: number;
   maxBooks: number;
   initialSearch: string;
+  facets: TopicFacet[];
 }
 
 interface PagedCatalogResponse {
@@ -33,6 +35,7 @@ interface PagedCatalogResponse {
   total: number;
   page: number;
   pageSize: number;
+  facets: TopicFacet[];
 }
 
 // =============================================================================
@@ -121,6 +124,7 @@ export default function Catalog({
   numberBooksToShow,
   maxBooks,
   initialSearch,
+  facets: initialFacets,
 }: CatalogPropsType) {
   const [bookSearchInput, setBookSearchInput] = useState(initialSearch);
   const [serverSearch, setServerSearch] = useState(initialSearch);
@@ -128,6 +132,7 @@ export default function Catalog({
   // every card already seen mounted, and the cost of scrolling and typing
   // grows with it: a few hundred cards is enough to make the page feel slow.
   const [page, setPage] = useState(1);
+  const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
 
   useEffect(() => {
     const id = setTimeout(() => {
@@ -142,25 +147,27 @@ export default function Catalog({
 
   // One builder for both keys below, so the comparison cannot drift apart.
   const buildUrl = useCallback(
-    (requestedPage: number, query: string) => {
+    (requestedPage: number, query: string, topics: string[]) => {
       const params = new URLSearchParams({
         page: String(requestedPage),
         pageSize: String(pageSize),
       });
       if (query.trim()) params.set("q", query.trim());
+      // Repeated rather than delimited, so a topic may contain any character.
+      for (const topic of topics) params.append("topic", topic);
       return `/api/public/books?${params.toString()}`;
     },
     [pageSize],
   );
 
   const requestUrl = useMemo(
-    () => buildUrl(page, serverSearch),
-    [buildUrl, page, serverSearch],
+    () => buildUrl(page, serverSearch, selectedTopics),
+    [buildUrl, page, serverSearch, selectedTopics],
   );
 
   // The key getServerSideProps already answered: page 1 of the initial search.
   const ssrUrl = useMemo(
-    () => buildUrl(1, initialSearch),
+    () => buildUrl(1, initialSearch, []),
     [buildUrl, initialSearch],
   );
 
@@ -169,7 +176,13 @@ export default function Catalog({
     // handing it to every key would show page 1 while another page loads.
     fallbackData:
       requestUrl === ssrUrl
-        ? { books: initialBooks, total: initialTotal, page: 1, pageSize }
+        ? {
+            books: initialBooks,
+            total: initialTotal,
+            page: 1,
+            pageSize,
+            facets: initialFacets,
+          }
         : undefined,
     // The page already contains this exact response, so there is nothing to
     // revalidate on mount; without this the catalog fetched page 1 twice on
@@ -190,6 +203,14 @@ export default function Catalog({
     [data?.books, initialBooks],
   );
   const resultCount = data?.total ?? initialTotal;
+  const facets = data?.facets ?? initialFacets;
+
+  const handleToggleTopic = useCallback((topic: string) => {
+    setPage(1);
+    setSelectedTopics((prev) =>
+      prev.includes(topic) ? prev.filter((t) => t !== topic) : [...prev, topic],
+    );
+  }, []);
 
   const handleInputChangeEvent = useCallback(
     (e: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement>) => {
@@ -208,13 +229,10 @@ export default function Catalog({
     if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
 
-  const handlePageChange = useCallback(
-    (next: number) => {
-      setPage(next);
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    },
-    [],
-  );
+  const handlePageChange = useCallback((next: number) => {
+    setPage(next);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
 
   const noop = useCallback(() => {}, []);
 
@@ -229,6 +247,11 @@ export default function Catalog({
         searchResultNumber={resultCount}
         showNewBookControl={false}
         showViewToggle={false}
+      />
+      <FacetBar
+        facets={facets}
+        selected={selectedTopics}
+        onToggle={handleToggleTopic}
       />
       <CatalogCardGrid
         renderedBooks={books}
@@ -272,6 +295,7 @@ export const getServerSideProps: GetServerSideProps = async (
         numberBooksToShow,
         maxBooks,
         initialSearch,
+        facets: data.facets,
       },
     };
   } catch (error) {
