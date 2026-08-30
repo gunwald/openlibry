@@ -10,6 +10,7 @@ import { GetServerSideProps, GetServerSidePropsContext } from "next";
 import Head from "next/head";
 import Image from "next/image";
 import Link from "next/link";
+import CopyNavigator from "@/components/book/CopyNavigator";
 import { useCallback, useState } from "react";
 
 function parseTopics(raw: string | null | undefined): string[] {
@@ -253,6 +254,11 @@ export default function CatalogDetailPage({ book }: CatalogDetailProps) {
 
               {/* Availability status */}
               <AvailabilityPill rentalStatus={book.rentalStatus} />
+
+              {/* Stepping between copies of the same title. The list groups
+                  them into one card, so this is the only way back to the
+                  others. */}
+              <CopyNavigator copies={book.copies ?? null} basePath="/catalog" />
 
               {/* Topics */}
               {topics.length > 0 && (

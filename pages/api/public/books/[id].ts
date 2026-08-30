@@ -1,5 +1,6 @@
 import { PublicBookDetailType } from "@/entities/PublicBookDetailType";
 import { PublicBookType } from "@/entities/PublicBookType";
+import { getCopySiblings } from "@/entities/book";
 import { prisma, reconnectPrisma } from "@/entities/db";
 import { LogEvents } from "@/lib/logEvents";
 import { errorLogger } from "@/lib/logger";
@@ -111,7 +112,9 @@ export default async function handler(
       relatedBooks,
     };
 
-    return res.status(200).json(detail);
+    const copies = await getCopySiblings(prisma, book.id);
+
+    return res.status(200).json({ ...detail, copies });
   } catch (error) {
     errorLogger.error(
       {

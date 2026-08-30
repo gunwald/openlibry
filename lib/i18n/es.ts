@@ -1155,6 +1155,14 @@ export const es: Dictionary = {
     copies: "{count} ejemplares",
   },
 
+  copies: {
+    label: "Ejemplares de este título",
+    position: "Ejemplar {position} de {total}",
+    available: "{count} disponibles",
+    previous: "Ejemplar anterior",
+    next: "Ejemplar siguiente",
+  },
+
   facets: {
     label: "Filtrar por tema",
   },

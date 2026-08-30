@@ -539,6 +539,55 @@ function pinGroupWithId(groups: BookGroup[], exactId: number | null) {
   return [groups[index], ...groups.slice(0, index), ...groups.slice(index + 1)];
 }
 
+/**
+ * Where one volume sits among the other copies of the same title.
+ *
+ * Grouping the lists made this necessary: a card now stands for a title, so
+ * opening it used to be a dead end at one arbitrary copy with no way to reach
+ * the other thirty-four. Null when the book stands alone, either because the
+ * library holds a single copy or because it has no ISBN to match siblings on,
+ * so the caller can leave the whole thing out rather than render "1 von 1".
+ */
+export type CopySiblings = {
+  position: number;
+  total: number;
+  availableCount: number;
+  previousId: number | null;
+  nextId: number | null;
+};
+
+export async function getCopySiblings(
+  client: PrismaClient,
+  bookId: number,
+): Promise<CopySiblings | null> {
+  const book = await client.book.findUnique({
+    where: { id: bookId },
+    select: { isbn: true },
+  });
+
+  const isbn = book?.isbn?.trim();
+  if (!isbn) return null;
+
+  const copies = await client.book.findMany({
+    where: { isbn },
+    orderBy: { id: "asc" },
+    select: { id: true, rentalStatus: true },
+  });
+
+  if (copies.length < 2) return null;
+
+  const index = copies.findIndex((c) => c.id === bookId);
+  if (index === -1) return null;
+
+  return {
+    position: index + 1,
+    total: copies.length,
+    availableCount: copies.filter((c) => c.rentalStatus === "available").length,
+    previousId: index > 0 ? copies[index - 1].id : null,
+    nextId: index < copies.length - 1 ? copies[index + 1].id : null,
+  };
+}
+
 export async function getPagedBooks(
   client: PrismaClient,
   {
