@@ -210,6 +210,10 @@ export default function Catalog({
     setSelectedTopics((prev) =>
       prev.includes(topic) ? prev.filter((t) => t !== topic) : [...prev, topic],
     );
+    // The typed words became the filter, so the field starts clean again
+    // rather than searching for the same thing twice.
+    setBookSearchInput("");
+    setServerSearch("");
   }, []);
 
   const handleInputChangeEvent = useCallback(
@@ -245,6 +249,9 @@ export default function Catalog({
         toggleView={noop}
         detailView={true}
         searchResultNumber={resultCount}
+        facets={facets}
+        selectedTopics={selectedTopics}
+        onToggleTopic={handleToggleTopic}
         showNewBookControl={false}
         showViewToggle={false}
       />

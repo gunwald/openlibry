@@ -1270,10 +1270,6 @@ export const de = {
 
   facets: {
     label: "Schlagwörter filtern",
-    more: "Mehr +{count}",
-    less: "Weniger",
-    filterPlaceholder: "Schlagwort suchen…",
-    noMatch: "Kein passendes Schlagwort",
   },
 
   // ─── Pagination (catalog and book list) ──────────────────────────────

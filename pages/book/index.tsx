@@ -232,6 +232,10 @@ export default function Books({
     setSelectedTopics((prev) =>
       prev.includes(topic) ? prev.filter((t) => t !== topic) : [...prev, topic],
     );
+    // The typed words became the filter, so the field starts clean again
+    // rather than searching for the same thing twice.
+    setBookSearchInput("");
+    setServerSearch("");
   }, []);
 
   const handlePageChange = useCallback((next: number) => {
@@ -248,6 +252,9 @@ export default function Books({
         toggleView={toggleView}
         detailView={detailView}
         searchResultNumber={resultCount}
+        facets={facets}
+        selectedTopics={selectedTopics}
+        onToggleTopic={handleToggleTopic}
       />
       <FacetBar
         facets={facets}
