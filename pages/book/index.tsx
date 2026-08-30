@@ -19,6 +19,13 @@ import {
 } from "@/entities/book";
 import { prisma, reconnectPrisma } from "@/entities/db";
 import { t } from "@/lib/i18n";
+import {
+  getPositiveInt,
+  getQueryValues,
+  getSingleQueryValue,
+  readQueryValue,
+  readQueryValues,
+} from "@/lib/utils/queryParams";
 import { toast } from "sonner";
 
 interface BookPropsType {
@@ -27,6 +34,8 @@ interface BookPropsType {
   numberBooksToShow: number;
   maxBooks: number;
   initialSearch: string;
+  initialPage: number;
+  initialTopics: string[];
   facets: TopicFacet[];
   _timestamp?: number;
 }
@@ -82,55 +91,111 @@ export default function Books({
   numberBooksToShow,
   maxBooks,
   initialSearch,
+  initialPage,
+  initialTopics,
   facets: initialFacets,
 }: BookPropsType) {
   const router = useRouter();
-  const { query } = useRouter();
+
+  // Search, page and topics live in the address rather than in state, so
+  // opening a book from a result list and pressing back brings the same list
+  // back, and a result list can be linked to. One page is on screen at a
+  // time: growing the page size instead would keep every card already seen
+  // mounted, and scrolling and typing get slower the longer it is used.
+  const serverSearch = readQueryValue(router.query.q);
+  const selectedTopics = readQueryValues(router.query.topic);
+  const page = Math.max(
+    1,
+    parseInt(readQueryValue(router.query.page), 10) || 1,
+  );
+
+  // The field itself stays local so typing never waits for the router.
   const [bookSearchInput, setBookSearchInput] = useState(initialSearch);
-  const [serverSearch, setServerSearch] = useState(initialSearch);
-  // One page on screen at a time. Growing the page size instead would keep
-  // every card already seen mounted, and scrolling and typing get slower the
-  // longer the list is used.
-  const [page, setPage] = useState(1);
-  const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
+  const [detailView, setDetailView] = useState(true);
 
   useEffect(() => {
-    if (typeof query.q === "string" && query.q) {
-      setBookSearchInput(query.q);
-      setServerSearch(query.q);
-      setPage(1);
-      setDetailView(true);
+    setBookSearchInput(serverSearch);
+    if (serverSearch) setDetailView(true);
+  }, [serverSearch]);
+
+  const applyQuery = useCallback(
+    (
+      next: { q?: string; page?: number; topics?: string[] },
+      mode: "push" | "replace",
+    ) => {
+      const query: Record<string, string | string[]> = {};
+      const q = (next.q ?? serverSearch).trim();
+      const topics = next.topics ?? selectedTopics;
+      const nextPage = next.page ?? page;
+      if (q) query.q = q;
+      if (topics.length > 0) query.topic = topics;
+      if (nextPage > 1) query.page = String(nextPage);
+      router[mode]({ pathname: router.pathname, query }, undefined, {
+        shallow: true,
+      });
+    },
+    [router, serverSearch, selectedTopics, page],
+  );
+
+  // The search runs on Enter, never while typing. Searching as you type looked
+  // cheap but was not: at a comfortable typing speed it fired on nearly every
+  // keystroke, and each one is a query plus a recount of the topic facets.
+  // Typing still costs nothing, because the topic suggestions under the field
+  // are filtered from the facet list the page already has.
+  const handleSubmitSearch = useCallback(
+    (value: string) => {
+      applyQuery({ q: value, page: 1 }, "push");
+    },
+    [applyQuery],
+  );
+
+  // Emptying the field is the one exception: it means "show me everything
+  // again", and waiting for Enter there feels broken.
+  useEffect(() => {
+    if (bookSearchInput === "" && serverSearch !== "") {
+      applyQuery({ q: "", page: 1 }, "replace");
     }
-  }, [query.q]);
+  }, [bookSearchInput, serverSearch, applyQuery]);
 
-  useEffect(() => {
-    const id = setTimeout(() => {
-      setServerSearch(bookSearchInput);
-      setPage(1);
-    }, 150);
+  // One builder for both keys below, so the comparison cannot drift apart.
+  const buildUrl = useCallback(
+    (requestedPage: number, query: string, topics: string[]) => {
+      const params = new URLSearchParams({
+        page: String(requestedPage),
+        pageSize: Math.min(numberBooksToShow, maxBooks).toString(),
+      });
+      if (query.trim()) params.set("q", query.trim());
+      // Repeated rather than delimited, so a topic may contain any character.
+      for (const topic of topics) params.append("topic", topic);
+      return `/api/book?${params.toString()}`;
+    },
+    [numberBooksToShow, maxBooks],
+  );
 
-    return () => clearTimeout(id);
-  }, [bookSearchInput]);
+  const requestUrl = useMemo(
+    () => buildUrl(page, serverSearch, selectedTopics),
+    [buildUrl, page, serverSearch, selectedTopics],
+  );
 
-  const requestUrl = useMemo(() => {
-    const params = new URLSearchParams({
-      page: String(page),
-      pageSize: Math.min(numberBooksToShow, maxBooks).toString(),
-    });
-    if (serverSearch.trim()) params.set("q", serverSearch.trim());
-    // Repeated rather than delimited, so a topic may contain any character.
-    for (const topic of selectedTopics) params.append("topic", topic);
-    return `/api/book?${params.toString()}`;
-  }, [page, numberBooksToShow, maxBooks, serverSearch, selectedTopics]);
+  // The key getServerSideProps already answered.
+  const ssrUrl = useMemo(
+    () => buildUrl(initialPage, initialSearch, initialTopics),
+    [buildUrl, initialPage, initialSearch, initialTopics],
+  );
 
   const { data: freshData, mutate } = useSWR<PagedBooks>(requestUrl, fetcher, {
-    fallbackData: {
-      books: initialBooks,
-      total: initialTotal,
-      page: 1,
-      pageSize: numberBooksToShow,
-      facets: initialFacets,
-    },
+    // Only for the key the server answered. fallbackData is not keyed, so
+    // handing it to every key would show page one while another page loads.
+    fallbackData:
+      requestUrl === ssrUrl
+        ? {
+            books: initialBooks,
+            total: initialTotal,
+            page: initialPage,
+            pageSize: numberBooksToShow,
+            facets: initialFacets,
+          }
+        : undefined,
     // Without this, every key change (new search term, another page) would
     // fall back to the initial unfiltered page-1 data while the fetch is in
     // flight — a visible flash of wrong results.
@@ -147,7 +212,6 @@ export default function Books({
   const books = freshData?.books || initialBooks;
   const resultCount = freshData?.total ?? initialTotal;
 
-  const [detailView, setDetailView] = useState(true);
 
   // Numeric-query priority sort: if the query contains digits, bubble books
   // whose title contains those digits to the top. Runs only when the query
@@ -222,26 +286,31 @@ export default function Books({
 
   // A shrinking result set (a narrower search) can leave us past the end.
   useEffect(() => {
-    if (page > totalPages) setPage(totalPages);
-  }, [page, totalPages]);
+    if (page > totalPages) applyQuery({ page: totalPages }, "replace");
+  }, [page, totalPages, applyQuery]);
 
   const facets = freshData?.facets ?? initialFacets;
 
-  const handleToggleTopic = useCallback((topic: string) => {
-    setPage(1);
-    setSelectedTopics((prev) =>
-      prev.includes(topic) ? prev.filter((t) => t !== topic) : [...prev, topic],
-    );
-    // The typed words became the filter, so the field starts clean again
-    // rather than searching for the same thing twice.
-    setBookSearchInput("");
-    setServerSearch("");
-  }, []);
+  const handleToggleTopic = useCallback(
+    (topic: string) => {
+      const topics = selectedTopics.includes(topic)
+        ? selectedTopics.filter((t) => t !== topic)
+        : [...selectedTopics, topic];
+      // The typed words became the filter, so the field starts clean again
+      // rather than searching for the same thing twice.
+      setBookSearchInput("");
+      applyQuery({ topics, page: 1, q: "" }, "push");
+    },
+    [applyQuery, selectedTopics],
+  );
 
-  const handlePageChange = useCallback((next: number) => {
-    setPage(next);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }, []);
+  const handlePageChange = useCallback(
+    (next: number) => {
+      applyQuery({ page: next }, "push");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    },
+    [applyQuery],
+  );
 
   return (
     <Layout>
@@ -255,6 +324,7 @@ export default function Books({
         facets={facets}
         selectedTopics={selectedTopics}
         onToggleTopic={handleToggleTopic}
+        onSubmitSearch={handleSubmitSearch}
       />
       <FacetBar
         facets={facets}
@@ -307,15 +377,17 @@ export const getServerSideProps: GetServerSideProps = async (
     const maxBooks = process.env.NUMBER_BOOKS_MAX
       ? parseInt(process.env.NUMBER_BOOKS_MAX)
       : 1000000;
-    const initialSearch =
-      typeof context.query.q === "string" ? context.query.q : "";
+    const initialSearch = getSingleQueryValue(context.query.q);
+    const initialPage = getPositiveInt(context.query.page) ?? 1;
+    const initialTopics = getQueryValues(context.query.topic);
 
     // Same entity function the API route uses, in-process — SSR and client
     // revalidation can't drift apart.
     const { books, total, facets } = await getPagedBooks(prisma, {
-      page: 1,
+      page: initialPage,
       pageSize: numberBooksToShow,
       query: initialSearch,
+      topics: initialTopics,
     });
 
     return {
@@ -325,6 +397,8 @@ export const getServerSideProps: GetServerSideProps = async (
         numberBooksToShow,
         maxBooks,
         initialSearch,
+        initialPage,
+        initialTopics,
         facets,
         _timestamp: Date.now(),
       },
