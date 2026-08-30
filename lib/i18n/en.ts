@@ -1181,10 +1181,6 @@ export const en: Dictionary = {
 
   facets: {
     label: "Filter by topic",
-    more: "More +{count}",
-    less: "Less",
-    filterPlaceholder: "Search topics…",
-    noMatch: "No matching topic",
   },
 
   pagination: {

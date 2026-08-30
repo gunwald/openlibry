@@ -1206,10 +1206,6 @@ export const es: Dictionary = {
 
   facets: {
     label: "Filtrar por tema",
-    more: "Más +{count}",
-    less: "Menos",
-    filterPlaceholder: "Buscar tema…",
-    noMatch: "Ningún tema coincide",
   },
 
   pagination: {
