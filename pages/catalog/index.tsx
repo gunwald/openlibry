@@ -138,25 +138,46 @@ export default function Catalog({
     return () => clearTimeout(id);
   }, [bookSearchInput]);
 
-  const requestUrl = useMemo(() => {
-    const params = new URLSearchParams({
-      page: String(page),
-      pageSize: Math.min(numberBooksToShow, maxBooks).toString(),
-    });
-    if (serverSearch.trim()) params.set("q", serverSearch.trim());
-    return `/api/public/books?${params.toString()}`;
-  }, [page, numberBooksToShow, maxBooks, serverSearch]);
+  const pageSize = Math.min(numberBooksToShow, maxBooks);
+
+  // One builder for both keys below, so the comparison cannot drift apart.
+  const buildUrl = useCallback(
+    (requestedPage: number, query: string) => {
+      const params = new URLSearchParams({
+        page: String(requestedPage),
+        pageSize: String(pageSize),
+      });
+      if (query.trim()) params.set("q", query.trim());
+      return `/api/public/books?${params.toString()}`;
+    },
+    [pageSize],
+  );
+
+  const requestUrl = useMemo(
+    () => buildUrl(page, serverSearch),
+    [buildUrl, page, serverSearch],
+  );
+
+  // The key getServerSideProps already answered: page 1 of the initial search.
+  const ssrUrl = useMemo(
+    () => buildUrl(1, initialSearch),
+    [buildUrl, initialSearch],
+  );
 
   const { data } = useSWR<PagedCatalogResponse>(requestUrl, fetcher, {
-    fallbackData: {
-      books: initialBooks,
-      total: initialTotal,
-      page: 1,
-      pageSize: numberBooksToShow,
-    },
+    // Offered for the server-rendered key only. fallbackData is not keyed, so
+    // handing it to every key would show page 1 while another page loads.
+    fallbackData:
+      requestUrl === ssrUrl
+        ? { books: initialBooks, total: initialTotal, page: 1, pageSize }
+        : undefined,
+    // The page already contains this exact response, so there is nothing to
+    // revalidate on mount; without this the catalog fetched page 1 twice on
+    // every visit. Another page or search term is a key with no cached data
+    // and still fetches.
+    revalidateIfStale: false,
     // Without this, every key change (new search term, another page) would
-    // fall back to the initial unfiltered page-1 data while the fetch is in
-    // flight — a visible flash of wrong results.
+    // briefly render with no data at all — a visible flash of empty results.
     keepPreviousData: true,
     refreshInterval: 0,
     revalidateOnFocus: false,
@@ -177,7 +198,6 @@ export default function Catalog({
     [],
   );
 
-  const pageSize = Math.min(numberBooksToShow, maxBooks);
   const totalPages = Math.max(
     1,
     Math.ceil(Math.min(resultCount, maxBooks) / pageSize),
