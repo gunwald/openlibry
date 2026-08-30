@@ -1179,6 +1179,10 @@ export const en: Dictionary = {
     fetchFailed: "Error loading rental data",
   },
 
+  bookCard: {
+    copies: "{count} copies",
+  },
+
   facets: {
     label: "Filter by topic",
   },

@@ -24,4 +24,6 @@ export interface PublicBookType {
   rentalStatus: string;
   /** Always `/api/images/${id}` — served by the images route, auth-excluded. */
   coverUrl: string;
+  /** How many copies of this title the library holds. */
+  copyCount?: number;
 }
