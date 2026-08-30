@@ -1201,6 +1201,10 @@ export const es: Dictionary = {
     fetchFailed: "Error al cargar los datos de préstamos",
   },
 
+  bookCard: {
+    copies: "{count} ejemplares",
+  },
+
   facets: {
     label: "Filtrar por tema",
   },

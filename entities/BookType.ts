@@ -30,4 +30,6 @@ export interface BookType {
   externalLinks?: string;
   userId?: number;
   shelf?: string;
+  /** How many copies of this title the library holds. */
+  copyCount?: number;
 }

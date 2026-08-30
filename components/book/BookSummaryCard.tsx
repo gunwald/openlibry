@@ -10,6 +10,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { BookType } from "@/entities/BookType";
+import { t } from "@/lib/i18n";
 import CoverModal from "./CoverModal";
 import StatusBadge from "./StatusBadge";
 
@@ -49,6 +50,7 @@ function BookSummaryCard({
   const [modalOpen, setModalOpen] = useState(false);
 
   const isRented = book.rentalStatus === "rented";
+  const copyCount = book.copyCount ?? 1;
 
   const handleOpenModal = useCallback(
     (e: React.MouseEvent) => {
@@ -180,6 +182,20 @@ function BookSummaryCard({
         >
           #{book.id}
         </span>
+
+        {/* Copies. The card stands for a title, not a single volume, so it has
+            to say when the library holds more than one. */}
+        {copyCount > 1 && (
+          <span
+            className="px-1.5 py-0.5 rounded-lg bg-black/40 backdrop-blur-lg
+                       text-[0.6rem] font-medium text-white/95"
+            aria-label={t("bookCard.copies", { count: String(copyCount) })}
+            title={t("bookCard.copies", { count: String(copyCount) })}
+            data-cy="book_card_copycount"
+          >
+            {copyCount}&times;
+          </span>
+        )}
 
         {isRented && showDetailsControl && (
           <Tooltip>

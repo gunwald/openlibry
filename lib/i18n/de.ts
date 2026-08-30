@@ -1268,6 +1268,10 @@ export const de = {
     fetchFailed: "Fehler beim Laden der Ausleihdaten",
   },
 
+  bookCard: {
+    copies: "{count} Exemplare",
+  },
+
   facets: {
     label: "Schlagwörter filtern",
   },
