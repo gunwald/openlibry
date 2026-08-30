@@ -49,6 +49,8 @@ export type PagedPublicBooks = {
   total: number;
   page: number;
   pageSize: number;
+  /** Topic counts within the current filter, most common first. */
+  facets: TopicFacet[];
 };
 
 type SearchableBookField = "title" | "author" | "subtitle" | "isbn" | "topics";
@@ -156,6 +158,75 @@ export function getBookWhere(query: string): Prisma.BookWhereInput | undefined {
   ]);
 }
 
+/**
+ * Matches one whole topic inside the semicolon-separated `topics` column.
+ *
+ * A plain `contains` would be wrong: "Rom" would match "Romantik" and
+ * "9. Jahrhundert" would match all 111 books tagged "19. Jahrhundert". The
+ * four cases below anchor the match to the separators instead: the only
+ * topic, the first, the last, or somewhere in the middle.
+ */
+export function topicWhere(topic: string): Prisma.BookWhereInput {
+  return {
+    OR: [
+      { topics: topic },
+      { topics: { startsWith: `${topic};` } },
+      { topics: { endsWith: `;${topic}` } },
+      { topics: { contains: `;${topic};` } },
+    ],
+  };
+}
+
+/** Combines the text query with any selected topics, all ANDed together. */
+export function withTopics(
+  where: Prisma.BookWhereInput | undefined,
+  topics: string[],
+): Prisma.BookWhereInput | undefined {
+  const selected = topics.map((t) => t.trim()).filter(Boolean);
+  if (selected.length === 0) return where;
+  return { AND: [...(where ? [where] : []), ...selected.map(topicWhere)] };
+}
+
+export type TopicFacet = { topic: string; count: number };
+
+/**
+ * Counts topics across the books the current filter selects, most common
+ * first, so the facet row reflects what is actually reachable from here.
+ *
+ * Reads only the `topics` column of the matching rows and tallies in memory.
+ * That is a column scan rather than an aggregate per topic, which for a
+ * school library (hundreds to a few thousand books) is the cheaper shape.
+ */
+export async function getTopicFacets(
+  client: PrismaClient,
+  where: Prisma.BookWhereInput | undefined,
+  // Generous, because the cap is a payload guard rather than a display limit:
+  // the row shows the handful that fit and the rest are reachable by searching
+  // the panel. A library with more distinct topics than this loses only its
+  // rarest tags from the filter, never from search. Counting costs the same
+  // either way, since it is one scan of the topics column.
+  limit = 400,
+): Promise<TopicFacet[]> {
+  const rows = await client.book.findMany({ where, select: { topics: true } });
+
+  const counts = new Map<string, number>();
+  for (const row of rows) {
+    if (!row.topics) continue;
+    // A book tagged the same topic twice must still count once.
+    const seen = new Set<string>();
+    for (const raw of row.topics.split(";")) {
+      const topic = raw.trim();
+      if (!topic || seen.has(topic)) continue;
+      seen.add(topic);
+      counts.set(topic, (counts.get(topic) ?? 0) + 1);
+    }
+  }
+
+  return Array.from(counts, ([topic, count]) => ({ topic, count }))
+    .sort((a, b) => b.count - a.count || a.topic.localeCompare(b.topic))
+    .slice(0, limit);
+}
+
 export function getPublicBookWhere(
   query: string,
 ): Prisma.BookWhereInput | undefined {
@@ -239,6 +310,8 @@ export type PagedBooks = {
   total: number;
   page: number;
   pageSize: number;
+  /** Topic counts within the current filter, most common first. */
+  facets: TopicFacet[];
 };
 
 export function toListBook(
@@ -246,13 +319,7 @@ export function toListBook(
   copyCountsByIsbn: Map<string, number> = new Map(),
 ): ListBookType {
   const trimmedIsbn = book.isbn?.trim();
-  const {
-    subtitle,
-    topics,
-    isbn,
-    userId,
-    ...rest
-  } = book;
+  const { subtitle, topics, isbn, userId, ...rest } = book;
 
   const listBook: ListBookType = {
     ...rest,
@@ -284,12 +351,13 @@ export async function getPagedBooks(
     page,
     pageSize,
     query = "",
-  }: { page: number; pageSize: number; query?: string },
+    topics = [],
+  }: { page: number; pageSize: number; query?: string; topics?: string[] },
 ): Promise<PagedBooks> {
-  const where = getBookWhere(query);
+  const where = withTopics(getBookWhere(query), topics);
 
   try {
-    const [rawBooks, total] = await Promise.all([
+    const [rawBooks, total, facets] = await Promise.all([
       client.book.findMany({
         select: listBookSelect,
         where,
@@ -298,6 +366,7 @@ export async function getPagedBooks(
         take: pageSize,
       }),
       client.book.count({ where }),
+      getTopicFacets(client, where),
     ]);
     const copyCountsByIsbn = await getCopyCountsByIsbn(client, rawBooks, where);
 
@@ -306,6 +375,7 @@ export async function getPagedBooks(
       total,
       page,
       pageSize,
+      facets,
     };
   } catch (e) {
     if (
@@ -415,12 +485,13 @@ export async function getPagedPublicBooks(
     page,
     pageSize,
     query = "",
-  }: { page: number; pageSize: number; query?: string },
+    topics = [],
+  }: { page: number; pageSize: number; query?: string; topics?: string[] },
 ): Promise<PagedPublicBooks> {
-  const where = getPublicBookWhere(query);
+  const where = withTopics(getPublicBookWhere(query), topics);
 
   try {
-    const [rawBooks, total] = await Promise.all([
+    const [rawBooks, total, facets] = await Promise.all([
       client.book.findMany({
         select: publicBookSelect,
         where,
@@ -429,6 +500,7 @@ export async function getPagedPublicBooks(
         take: pageSize,
       }),
       client.book.count({ where }),
+      getTopicFacets(client, where),
     ]);
 
     return {
@@ -436,6 +508,7 @@ export async function getPagedPublicBooks(
       total,
       page,
       pageSize,
+      facets,
     };
   } catch (e) {
     if (

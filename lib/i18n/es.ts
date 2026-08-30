@@ -1151,6 +1151,14 @@ export const es: Dictionary = {
     fetchFailed: "Error al cargar los datos de préstamos",
   },
 
+  facets: {
+    label: "Filtrar por tema",
+    more: "Más +{count}",
+    less: "Menos",
+    filterPlaceholder: "Buscar tema…",
+    noMatch: "Ningún tema coincide",
+  },
+
   pagination: {
     previousPage: "Anterior",
     nextPage: "Siguiente",

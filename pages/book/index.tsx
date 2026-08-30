@@ -6,11 +6,17 @@ import useSWR from "swr";
 
 import BookSearchBar from "@/components/book/BookSearchBar";
 import BookSummaryCard from "@/components/book/BookSummaryCard";
+import FacetBar from "@/components/book/FacetBar";
 import PaginationControls from "@/components/book/PaginationControls";
 
 import SummaryRowContainer from "@/components/book/SummaryRowContainer";
 import { BookType } from "@/entities/BookType";
-import { getPagedBooks, ListBookType, PagedBooks } from "@/entities/book";
+import {
+  getPagedBooks,
+  ListBookType,
+  PagedBooks,
+  TopicFacet,
+} from "@/entities/book";
 import { prisma, reconnectPrisma } from "@/entities/db";
 import { t } from "@/lib/i18n";
 import { toast } from "sonner";
@@ -21,6 +27,7 @@ interface BookPropsType {
   numberBooksToShow: number;
   maxBooks: number;
   initialSearch: string;
+  facets: TopicFacet[];
   _timestamp?: number;
 }
 
@@ -75,6 +82,7 @@ export default function Books({
   numberBooksToShow,
   maxBooks,
   initialSearch,
+  facets: initialFacets,
 }: BookPropsType) {
   const router = useRouter();
   const { query } = useRouter();
@@ -84,6 +92,7 @@ export default function Books({
   // every card already seen mounted, and scrolling and typing get slower the
   // longer the list is used.
   const [page, setPage] = useState(1);
+  const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
 
   useEffect(() => {
     if (typeof query.q === "string" && query.q) {
@@ -109,8 +118,10 @@ export default function Books({
       pageSize: Math.min(numberBooksToShow, maxBooks).toString(),
     });
     if (serverSearch.trim()) params.set("q", serverSearch.trim());
+    // Repeated rather than delimited, so a topic may contain any character.
+    for (const topic of selectedTopics) params.append("topic", topic);
     return `/api/book?${params.toString()}`;
-  }, [page, numberBooksToShow, maxBooks, serverSearch]);
+  }, [page, numberBooksToShow, maxBooks, serverSearch, selectedTopics]);
 
   const { data: freshData, mutate } = useSWR<PagedBooks>(requestUrl, fetcher, {
     fallbackData: {
@@ -118,6 +129,7 @@ export default function Books({
       total: initialTotal,
       page: 1,
       pageSize: numberBooksToShow,
+      facets: initialFacets,
     },
     // Without this, every key change (new search term, another page) would
     // fall back to the initial unfiltered page-1 data while the fetch is in
@@ -213,6 +225,15 @@ export default function Books({
     if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
 
+  const facets = freshData?.facets ?? initialFacets;
+
+  const handleToggleTopic = useCallback((topic: string) => {
+    setPage(1);
+    setSelectedTopics((prev) =>
+      prev.includes(topic) ? prev.filter((t) => t !== topic) : [...prev, topic],
+    );
+  }, []);
+
   const handlePageChange = useCallback((next: number) => {
     setPage(next);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -227,6 +248,11 @@ export default function Books({
         toggleView={toggleView}
         detailView={detailView}
         searchResultNumber={resultCount}
+      />
+      <FacetBar
+        facets={facets}
+        selected={selectedTopics}
+        onToggle={handleToggleTopic}
       />
       {detailView ? (
         <DetailCardContainer
@@ -279,7 +305,7 @@ export const getServerSideProps: GetServerSideProps = async (
 
     // Same entity function the API route uses, in-process — SSR and client
     // revalidation can't drift apart.
-    const { books, total } = await getPagedBooks(prisma, {
+    const { books, total, facets } = await getPagedBooks(prisma, {
       page: 1,
       pageSize: numberBooksToShow,
       query: initialSearch,
@@ -292,6 +318,7 @@ export const getServerSideProps: GetServerSideProps = async (
         numberBooksToShow,
         maxBooks,
         initialSearch,
+        facets,
         _timestamp: Date.now(),
       },
     };

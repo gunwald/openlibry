@@ -3,7 +3,11 @@ import { prisma, reconnectPrisma } from "@/entities/db";
 import { PublicBookType } from "@/entities/PublicBookType";
 import { LogEvents } from "@/lib/logEvents";
 import { businessLogger, errorLogger } from "@/lib/logger";
-import { getPositiveInt, getSingleQueryValue } from "@/lib/utils/queryParams";
+import {
+  getPositiveInt,
+  getQueryValues,
+  getSingleQueryValue,
+} from "@/lib/utils/queryParams";
 import type { NextApiRequest, NextApiResponse } from "next";
 
 type ErrorData = {
@@ -40,12 +44,14 @@ export default async function handler(
     const pageSize = getPositiveInt(req.query.pageSize);
     const page = getPositiveInt(req.query.page) ?? 1;
     const q = getSingleQueryValue(req.query.q);
+    const topics = getQueryValues(req.query.topic);
 
     if (pageSize) {
       const result = await getPagedPublicBooks(prisma, {
         page,
         pageSize,
         query: q,
+        topics,
       });
 
       businessLogger.info(

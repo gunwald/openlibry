@@ -1218,6 +1218,14 @@ export const de = {
     fetchFailed: "Fehler beim Laden der Ausleihdaten",
   },
 
+  facets: {
+    label: "Schlagwörter filtern",
+    more: "Mehr +{count}",
+    less: "Weniger",
+    filterPlaceholder: "Schlagwort suchen…",
+    noMatch: "Kein passendes Schlagwort",
+  },
+
   // ─── Pagination (catalog and book list) ──────────────────────────────
   pagination: {
     previousPage: "Zurück",

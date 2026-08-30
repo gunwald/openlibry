@@ -3,7 +3,11 @@ import { addBook, getAllBooks, getPagedBooks, PagedBooks } from "@/entities/book
 import { prisma } from "@/entities/db";
 import { LogEvents } from "@/lib/logEvents";
 import { businessLogger, errorLogger } from "@/lib/logger";
-import { getPositiveInt, getSingleQueryValue } from "@/lib/utils/queryParams";
+import {
+  getPositiveInt,
+  getQueryValues,
+  getSingleQueryValue,
+} from "@/lib/utils/queryParams";
 import type { NextApiRequest, NextApiResponse } from "next";
 
 type Data = {
@@ -51,12 +55,14 @@ export default async function handler(
         const pageSize = getPositiveInt(req.query.pageSize);
         const page = getPositiveInt(req.query.page) ?? 1;
         const q = getSingleQueryValue(req.query.q);
+    const topics = getQueryValues(req.query.topic);
 
         if (pageSize) {
           const result = await getPagedBooks(prisma, {
             page,
             pageSize,
             query: q,
+            topics,
           });
           return res.status(200).json(result);
         }
