@@ -15,3 +15,15 @@ export function getPositiveInt(
   const parsed = parseInt(getSingleQueryValue(value), 10);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 }
+
+/**
+ * Reads a parameter that may be repeated (`?topic=a&topic=b`), always as a
+ * list. Repeats rather than a delimiter so a value can contain any character.
+ */
+export function getQueryValues(
+  value: string | string[] | undefined,
+): string[] {
+  if (value === undefined) return [];
+  const list = Array.isArray(value) ? value : [value];
+  return list.map((v) => v.trim()).filter(Boolean);
+}

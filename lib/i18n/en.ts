@@ -1179,6 +1179,14 @@ export const en: Dictionary = {
     fetchFailed: "Error loading rental data",
   },
 
+  facets: {
+    label: "Filter by topic",
+    more: "More +{count}",
+    less: "Less",
+    filterPlaceholder: "Search topics…",
+    noMatch: "No matching topic",
+  },
+
   pagination: {
     previousPage: "Previous",
     nextPage: "Next",
