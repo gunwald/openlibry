@@ -1,4 +1,4 @@
-import { ArrowLeftFromLine } from "lucide-react";
+import { ArrowLeftFromLine, Layers } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/router";
@@ -100,23 +100,28 @@ function BookSummaryCard({
     // times reads as a stack at a glance rather than only through a number in
     // the corner. Decorative: the count is announced on the badge instead.
     <div className="relative inline-block">
+      {copyCount > 2 && (
+        <span
+          aria-hidden="true"
+          data-cy="card_stack_back"
+          className="absolute inset-0 rounded-[16px]
+                     bg-[#e4e0da] border border-[#cfcac2]
+                     shadow-[0_6px_16px_rgba(0,0,0,0.18)]
+                     rotate-[5deg] translate-x-[3px] origin-bottom-left
+                     transition-transform duration-300
+                     group-hover/card:rotate-[8deg] group-hover/card:translate-x-[6px]"
+        />
+      )}
       {copyCount > 1 && (
         <span
           aria-hidden="true"
           data-cy="card_stack"
-          className="absolute inset-0 rounded-[16px] bg-card/70 border border-border
-                     translate-x-[5px] translate-y-[5px]
+          className="absolute inset-0 rounded-[16px]
+                     bg-[#f0ece6] border border-[#d8d3cb]
+                     shadow-[0_5px_14px_rgba(0,0,0,0.16)]
+                     rotate-[2.5deg] translate-x-[1px] origin-bottom-left
                      transition-transform duration-300
-                     group-hover/card:translate-x-[7px] group-hover/card:translate-y-[7px]"
-        />
-      )}
-      {copyCount > 2 && (
-        <span
-          aria-hidden="true"
-          className="absolute inset-0 rounded-[16px] bg-card/85 border border-border
-                     translate-x-[2px] translate-y-[2px]
-                     transition-transform duration-300
-                     group-hover/card:translate-x-[3px] group-hover/card:translate-y-[3px]"
+                     group-hover/card:rotate-[4deg] group-hover/card:translate-x-[3px]"
         />
       )}
       <article
@@ -206,20 +211,6 @@ function BookSummaryCard({
             #{book.id}
           </span>
 
-          {/* Copies. The card stands for a title, not a single volume, so it has
-            to say when the library holds more than one. */}
-          {copyCount > 1 && (
-            <span
-              className="px-1.5 py-0.5 rounded-lg bg-black/40 backdrop-blur-lg
-                       text-[0.6rem] font-medium text-white/95"
-              aria-label={t("bookCard.copies", { count: String(copyCount) })}
-              title={t("bookCard.copies", { count: String(copyCount) })}
-              data-cy="book_card_copycount"
-            >
-              {copyCount}&times;
-            </span>
-          )}
-
           {isRented && showDetailsControl && (
             <Tooltip>
               <TooltipTrigger asChild>
@@ -293,6 +284,24 @@ function BookSummaryCard({
           >
             {book.author}
           </p>
+
+          {/* Copies, stated rather than implied. A catalogue answers "how many
+              do we have" in words: a tilt behind the card is ambiguous, and a
+              number in the corner loses to the chrome around it. The sheets
+              behind are reinforcement, not the signal. */}
+          {copyCount > 1 && (
+            <span
+              className="self-start inline-flex items-center gap-1 mt-1
+                         px-2 py-0.5 rounded-full
+                         bg-white/95 text-foreground
+                         text-[0.65rem] font-semibold
+                         shadow-[0_2px_6px_rgba(0,0,0,0.25)]"
+              data-cy="book_card_copycount"
+            >
+              <Layers className="h-3 w-3" />
+              {t("bookCard.copies", { count: String(copyCount) })}
+            </span>
+          )}
         </div>
 
         {/* Glow Effect Layer */}
