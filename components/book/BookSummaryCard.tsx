@@ -96,9 +96,11 @@ function BookSummaryCard({
   );
 
   return (
-    // Sheets peeking out behind the card, so a title the library holds several
-    // times reads as a stack at a glance rather than only through a number in
-    // the corner. Decorative: the count is announced on the badge instead.
+    // Sheets peeking out behind the card, so a title held several times reads
+    // as a pile. Straight offsets, not a fan: the grid leaves twelve pixels
+    // between cards, and a rotated sheet swept twenty-eight pixels out and
+    // overlapped the neighbours, which read as broken rendering rather than
+    // depth. Decorative only; the count is stated on the card itself.
     <div className="relative inline-block">
       {copyCount > 2 && (
         <span
@@ -106,10 +108,10 @@ function BookSummaryCard({
           data-cy="card_stack_back"
           className="absolute inset-0 rounded-[16px]
                      bg-[#e4e0da] border border-[#cfcac2]
-                     shadow-[0_6px_16px_rgba(0,0,0,0.18)]
-                     rotate-[5deg] translate-x-[3px] origin-bottom-left
+                     shadow-[0_4px_10px_rgba(0,0,0,0.16)]
+                     translate-x-[8px] translate-y-[8px]
                      transition-transform duration-300
-                     group-hover/card:rotate-[8deg] group-hover/card:translate-x-[6px]"
+                     group-hover/card:translate-x-[10px] group-hover/card:translate-y-[10px]"
         />
       )}
       {copyCount > 1 && (
@@ -118,10 +120,10 @@ function BookSummaryCard({
           data-cy="card_stack"
           className="absolute inset-0 rounded-[16px]
                      bg-[#f0ece6] border border-[#d8d3cb]
-                     shadow-[0_5px_14px_rgba(0,0,0,0.16)]
-                     rotate-[2.5deg] translate-x-[1px] origin-bottom-left
+                     shadow-[0_3px_8px_rgba(0,0,0,0.14)]
+                     translate-x-[4px] translate-y-[4px]
                      transition-transform duration-300
-                     group-hover/card:rotate-[4deg] group-hover/card:translate-x-[3px]"
+                     group-hover/card:translate-x-[5px] group-hover/card:translate-y-[5px]"
         />
       )}
       <article
