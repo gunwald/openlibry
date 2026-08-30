@@ -1,9 +1,15 @@
-import { getPagedPublicBooks, getPublicBooks, PagedPublicBooks } from "@/entities/book";
+import {
+  getPagedPublicBooks,
+  getPublicBooks,
+  PagedPublicBooks,
+} from "@/entities/book";
 import { prisma, reconnectPrisma } from "@/entities/db";
 import { PublicBookType } from "@/entities/PublicBookType";
 import { LogEvents } from "@/lib/logEvents";
 import { businessLogger, errorLogger } from "@/lib/logger";
 import {
+  DEFAULT_PAGE_SIZE,
+  getBoundedPageSize,
   getPositiveInt,
   getQueryValues,
   getSingleQueryValue,
@@ -18,7 +24,12 @@ type ErrorData = {
  * GET /api/public/books
  *
  * Unauthenticated endpoint returning a curated subset of book data suitable
- * for a public-facing catalog. Field whitelisting now lives in
+ * for a public-facing catalog.
+ *
+ * Always answers with a page. It used to return either a bare array or a paged
+ * envelope depending on whether pageSize was given, so a caller could not know
+ * the shape without inspecting it, and omitting the parameter read the whole
+ * table. The full export moved to /api/public/books/export. Field whitelisting now lives in
  * entities/book.ts::getPublicBooks so this route and getServerSideProps in
  * pages/catalog/index.tsx share one implementation instead of the page
  * re-fetching this route over HTTP.
@@ -41,45 +52,30 @@ export default async function handler(
   res.setHeader("Cache-Control", "public, max-age=60, s-maxage=300");
 
   try {
-    const pageSize = getPositiveInt(req.query.pageSize);
+    const pageSize = getBoundedPageSize(req.query.pageSize);
     const page = getPositiveInt(req.query.page) ?? 1;
     const q = getSingleQueryValue(req.query.q);
     const topics = getQueryValues(req.query.topic);
 
-    if (pageSize) {
-      const result = await getPagedPublicBooks(prisma, {
-        page,
-        pageSize,
-        query: q,
-        topics,
-      });
-
-      businessLogger.info(
-        {
-          event: LogEvents.BOOK_LIST_FETCHED,
-          count: result.books.length,
-          total: result.total,
-          endpoint: "/api/public/books",
-          paged: true,
-        },
-        "Public book catalog fetched",
-      );
-
-      return res.status(200).json(result);
-    }
-
-    const books = await getPublicBooks(prisma);
+    const result = await getPagedPublicBooks(prisma, {
+      page,
+      pageSize: pageSize ?? DEFAULT_PAGE_SIZE,
+      query: q,
+      topics,
+    });
 
     businessLogger.info(
       {
         event: LogEvents.BOOK_LIST_FETCHED,
-        count: books.length,
+        count: result.books.length,
+        total: result.total,
         endpoint: "/api/public/books",
+        paged: true,
       },
       "Public book catalog fetched",
     );
 
-    return res.status(200).json(books);
+    return res.status(200).json(result);
   } catch (error) {
     errorLogger.error(
       {
