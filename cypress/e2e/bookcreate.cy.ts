@@ -79,7 +79,6 @@ describe("Book creation and validation", () => {
 
       cy.get(`[data-cy=book_summary_card_${bookId}]`)
         .should("be.visible")
-        .find("[data-cy=book_card_editbutton]")
         .click();
     });
     cy.get("[data-cy=book-edit-form]").should("be.visible");

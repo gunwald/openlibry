@@ -70,7 +70,7 @@ describe("Book creation with ISBN autofill and editing", () => {
     cy.wait(1000);
 
     cy.get("[data-cy=book_title]").should("be.visible");
-    cy.get("[data-cy=book_card_editbutton]").should("be.visible").click();
+    cy.get("[data-cy^=book_summary_card_]").first().should("be.visible").click();
     cy.get("[data-cy=book-edit-form]").should("be.visible");
 
     cy.get("[data-cy=book-title-field]").clear().type(newTitle);
@@ -112,7 +112,7 @@ describe("Book creation with ISBN autofill and editing", () => {
     cy.get("[data-cy=rental_input_searchbook]").clear().type(bookId.toString());
     cy.wait(1000);
 
-    cy.get("[data-cy=book_card_editbutton]").click();
+    cy.get("[data-cy^=book_summary_card_]").first().click();
     cy.get("[data-cy=book-edit-form]").should("be.visible");
 
     cy.intercept("DELETE", "/api/book/*").as("deleteBook");
