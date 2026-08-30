@@ -61,9 +61,14 @@ export default async function handler(
 
     let relatedBooks: PublicBookType[] = [];
     if (topics.length > 0) {
+      const sameIsbn = book.isbn?.trim();
       const candidates = await prisma.book.findMany({
         where: {
           id: { not: id },
+          // Another copy of the same book is not a similar book. Without this
+          // a title held thirty-five times filled its own suggestions, and the
+          // copies are reachable from the copy navigation anyway.
+          ...(sameIsbn ? { NOT: { isbn: sameIsbn } } : {}),
           OR: topics.map((topic) => ({ topics: { contains: topic } })),
         },
         select: {

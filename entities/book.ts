@@ -129,6 +129,15 @@ function buildBookWhere(
   const q = query.trim();
   if (!q) return undefined;
 
+  // "#12" is a lookup rather than a search: that one book and nothing else.
+  // A bare "12" still searches, because it may be part of a title, but the
+  // hash form is how you say you mean the number on the spine.
+  const idLookup = q.match(/^#\s*(\d+)$/);
+  if (idLookup) {
+    const id = parseInt(idLookup[1].replace(/^0+/, "") || "0", 10);
+    return Number.isFinite(id) ? { id } : undefined;
+  }
+
   // AND across whitespace-separated terms, OR across fields per term, so
   // "Harry Rowling" finds a book whose title contains "Harry" and whose
   // author contains "Rowling".
