@@ -111,30 +111,40 @@ export default function Books({
 
   // The field itself stays local so typing never waits for the router.
   const [bookSearchInput, setBookSearchInput] = useState(initialSearch);
-  const [detailView, setDetailView] = useState(true);
+
+  // Which view you are looking at is part of where you are, so it lives in the
+  // address with the search and the page. Cards are the default, so only the
+  // list view names itself and an untouched URL stays clean.
+  const detailView = readQueryValue(router.query.view) !== "list";
 
   useEffect(() => {
     setBookSearchInput(serverSearch);
-    if (serverSearch) setDetailView(true);
   }, [serverSearch]);
 
   const applyQuery = useCallback(
     (
-      next: { q?: string; page?: number; topics?: string[] },
+      next: {
+        q?: string;
+        page?: number;
+        topics?: string[];
+        listView?: boolean;
+      },
       mode: "push" | "replace",
     ) => {
       const query: Record<string, string | string[]> = {};
       const q = (next.q ?? serverSearch).trim();
       const topics = next.topics ?? selectedTopics;
       const nextPage = next.page ?? page;
+      const listView = next.listView ?? !detailView;
       if (q) query.q = q;
       if (topics.length > 0) query.topic = topics;
       if (nextPage > 1) query.page = String(nextPage);
+      if (listView) query.view = "list";
       router[mode]({ pathname: router.pathname, query }, undefined, {
         shallow: true,
       });
     },
-    [router, serverSearch, selectedTopics, page],
+    [router, serverSearch, selectedTopics, page, detailView],
   );
 
   // The search runs on Enter, never while typing. Searching as you type looked
@@ -275,8 +285,8 @@ export default function Books({
   );
 
   const toggleView = useCallback(() => {
-    setDetailView((prev) => !prev);
-  }, []);
+    applyQuery({ listView: detailView }, "push");
+  }, [applyQuery, detailView]);
 
   const pageSize = Math.min(numberBooksToShow, maxBooks);
   const totalPages = Math.max(
