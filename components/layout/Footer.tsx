@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { t } from "@/lib/i18n";
 import { useEffect, useState } from "react";
 
@@ -16,9 +17,9 @@ export default function Footer() {
   return (
     <footer className="text-center pt-12 pb-6">
       <div className="flex flex-col md:flex-row items-center justify-center gap-4 md:gap-6 text-sm">
-        <a href="./catalog" className="text-inherit hover:underline">
+        <Link href="/catalog" className="text-inherit hover:underline">
           {t("footer.publicCatalog")}
-        </a>
+        </Link>
         <a href="https://openlibry.de" className="text-inherit hover:underline">
           {t("footer.copyright")}
         </a>
