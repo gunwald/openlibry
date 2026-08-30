@@ -30,7 +30,6 @@ interface DetailCardContainerProps {
   totalPages: number;
   onPageChange: (page: number) => void;
   onReturnBook: (id: number, userId: number) => void;
-  onTopicClick: (topic: string) => void;
 }
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
@@ -41,7 +40,6 @@ const DetailCardContainer = memo(function DetailCardContainer({
   totalPages,
   onPageChange,
   onReturnBook,
-  onTopicClick,
 }: DetailCardContainerProps) {
   return (
     <div>
@@ -54,7 +52,7 @@ const DetailCardContainer = memo(function DetailCardContainer({
             key={b.id}
             book={b}
             returnBook={() => onReturnBook(b.id!, b.userId!)}
-            onTopicClick={onTopicClick}
+            detailHref={`/book/${b.id}`}
           />
         ))}
       </div>
@@ -220,13 +218,6 @@ export default function Books({
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
 
-  const handleTopicClick = useCallback((topic: string) => {
-    setBookSearchInput(topic);
-    setServerSearch(topic);
-    setDetailView(true);
-    setPage(1);
-  }, []);
-
   return (
     <Layout>
       <BookSearchBar
@@ -244,7 +235,6 @@ export default function Books({
           totalPages={totalPages}
           onPageChange={handlePageChange}
           onReturnBook={handleReturnBook}
-          onTopicClick={handleTopicClick}
         />
       ) : (
         <SummaryRowContainer
