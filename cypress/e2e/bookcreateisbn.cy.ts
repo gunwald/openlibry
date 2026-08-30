@@ -66,11 +66,17 @@ describe("Book creation with ISBN autofill and editing", () => {
     cy.get("[data-cy=index_book_button]").click();
     cy.get("[data-cy=rental_input_searchbook]").should("be.visible");
 
-    cy.get("[data-cy=rental_input_searchbook]").clear().type(bookId.toString());
+    cy.get("[data-cy=rental_input_searchbook]")
+      .clear()
+      .type(bookId.toString())
+      .type("{enter}");
     cy.wait(1000);
 
     cy.get("[data-cy=book_title]").should("be.visible");
-    cy.get("[data-cy^=book_summary_card_]").first().should("be.visible").click();
+    cy.get("[data-cy^=book_summary_card_]")
+      .first()
+      .should("be.visible")
+      .click();
     cy.get("[data-cy=book-edit-form]").should("be.visible");
 
     cy.get("[data-cy=book-title-field]").clear().type(newTitle);
@@ -87,7 +93,10 @@ describe("Book creation with ISBN autofill and editing", () => {
 
     cy.visit("http://localhost:3000/");
     cy.get("[data-cy=index_book_button]").click();
-    cy.get("[data-cy=rental_input_searchbook]").clear().type(bookId.toString());
+    cy.get("[data-cy=rental_input_searchbook]")
+      .clear()
+      .type(bookId.toString())
+      .type("{enter}");
     cy.wait(1000);
 
     cy.get("[data-cy=book_title]").should("contain", newTitle);
@@ -109,7 +118,10 @@ describe("Book creation with ISBN autofill and editing", () => {
     expect(bookId).to.exist;
 
     cy.get("[data-cy=index_book_button]").click();
-    cy.get("[data-cy=rental_input_searchbook]").clear().type(bookId.toString());
+    cy.get("[data-cy=rental_input_searchbook]")
+      .clear()
+      .type(bookId.toString())
+      .type("{enter}");
     cy.wait(1000);
 
     cy.get("[data-cy^=book_summary_card_]").first().click();

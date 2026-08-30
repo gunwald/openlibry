@@ -97,7 +97,10 @@ Cypress.Commands.add("deleteFile", (filePath: string) => {
 
 Cypress.Commands.add("navigateToBookEdit", (bookId: string) => {
   cy.get("[data-cy=index_book_button]").click();
-  cy.get("[data-cy=rental_input_searchbook]").should("be.visible").type(bookId);
+  cy.get("[data-cy=rental_input_searchbook]")
+    .should("be.visible")
+    .type(bookId)
+    .type("{enter}");
 
   // Scope to the exact card matching this book ID. The whole card is the
   // link to the edit page; there is no separate details button.

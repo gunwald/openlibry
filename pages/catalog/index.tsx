@@ -9,7 +9,15 @@ import { prisma } from "@/entities/db";
 import { PublicBookType } from "@/entities/PublicBookType";
 import { LogEvents } from "@/lib/logEvents";
 import { errorLogger } from "@/lib/logger";
+import {
+  getPositiveInt,
+  getQueryValues,
+  getSingleQueryValue,
+  readQueryValue,
+  readQueryValues,
+} from "@/lib/utils/queryParams";
 import { GetServerSideProps, GetServerSidePropsContext } from "next";
+import { useRouter } from "next/router";
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
 
@@ -27,6 +35,8 @@ interface CatalogPropsType {
   numberBooksToShow: number;
   maxBooks: number;
   initialSearch: string;
+  initialPage: number;
+  initialTopics: string[];
   facets: TopicFacet[];
 }
 
@@ -124,24 +134,73 @@ export default function Catalog({
   numberBooksToShow,
   maxBooks,
   initialSearch,
+  initialPage,
+  initialTopics,
   facets: initialFacets,
 }: CatalogPropsType) {
+  const router = useRouter();
+
+  // What is being searched, which page, and which topics all live in the URL
+  // rather than in component state. That is what makes the back button work:
+  // open a book from a result list, go back, and the address still carries the
+  // search, so the same results come back. It also makes a result list
+  // something you can bookmark or send to someone.
+  const serverSearch = readQueryValue(router.query.q);
+  const selectedTopics = readQueryValues(router.query.topic);
+  const page = Math.max(
+    1,
+    parseInt(readQueryValue(router.query.page), 10) || 1,
+  );
+
+  // The field itself stays local so typing never waits for the router.
   const [bookSearchInput, setBookSearchInput] = useState(initialSearch);
-  const [serverSearch, setServerSearch] = useState(initialSearch);
-  // One page is on screen at a time. Growing a page size instead would keep
-  // every card already seen mounted, and the cost of scrolling and typing
-  // grows with it: a few hundred cards is enough to make the page feel slow.
-  const [page, setPage] = useState(1);
-  const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
 
+  // Keep the field in step when the address changes underneath us, which is
+  // what a press of the back button looks like from here.
   useEffect(() => {
-    const id = setTimeout(() => {
-      setServerSearch(bookSearchInput);
-      setPage(1);
-    }, 150);
+    setBookSearchInput(serverSearch);
+  }, [serverSearch]);
 
-    return () => clearTimeout(id);
-  }, [bookSearchInput]);
+  const applyQuery = useCallback(
+    (
+      next: { q?: string; page?: number; topics?: string[] },
+      mode: "push" | "replace",
+    ) => {
+      const query: Record<string, string | string[]> = {};
+      const q = (next.q ?? serverSearch).trim();
+      const topics = next.topics ?? selectedTopics;
+      const nextPage = next.page ?? page;
+      if (q) query.q = q;
+      if (topics.length > 0) query.topic = topics;
+      if (nextPage > 1) query.page = String(nextPage);
+      // Shallow: the data comes from SWR, so there is no reason to make the
+      // server render the page again just because the address changed.
+      router[mode]({ pathname: router.pathname, query }, undefined, {
+        shallow: true,
+      });
+    },
+    [router, serverSearch, selectedTopics, page],
+  );
+
+  // The search runs on Enter, never while typing. Searching as you type looked
+  // cheap but was not: at a comfortable typing speed it fired on nearly every
+  // keystroke, and each one is a query plus a recount of the topic facets.
+  // Typing still costs nothing, because the topic suggestions under the field
+  // are filtered from the facet list the page already has.
+  const handleSubmitSearch = useCallback(
+    (value: string) => {
+      applyQuery({ q: value, page: 1 }, "push");
+    },
+    [applyQuery],
+  );
+
+  // Emptying the field is the one exception: it means "show me everything
+  // again", and waiting for Enter there feels broken.
+  useEffect(() => {
+    if (bookSearchInput === "" && serverSearch !== "") {
+      applyQuery({ q: "", page: 1 }, "replace");
+    }
+  }, [bookSearchInput, serverSearch, applyQuery]);
 
   const pageSize = Math.min(numberBooksToShow, maxBooks);
 
@@ -167,8 +226,8 @@ export default function Catalog({
 
   // The key getServerSideProps already answered: page 1 of the initial search.
   const ssrUrl = useMemo(
-    () => buildUrl(1, initialSearch, []),
-    [buildUrl, initialSearch],
+    () => buildUrl(initialPage, initialSearch, initialTopics),
+    [buildUrl, initialPage, initialSearch, initialTopics],
   );
 
   const { data } = useSWR<PagedCatalogResponse>(requestUrl, fetcher, {
@@ -179,7 +238,7 @@ export default function Catalog({
         ? {
             books: initialBooks,
             total: initialTotal,
-            page: 1,
+            page: initialPage,
             pageSize,
             facets: initialFacets,
           }
@@ -205,16 +264,18 @@ export default function Catalog({
   const resultCount = data?.total ?? initialTotal;
   const facets = data?.facets ?? initialFacets;
 
-  const handleToggleTopic = useCallback((topic: string) => {
-    setPage(1);
-    setSelectedTopics((prev) =>
-      prev.includes(topic) ? prev.filter((t) => t !== topic) : [...prev, topic],
-    );
-    // The typed words became the filter, so the field starts clean again
-    // rather than searching for the same thing twice.
-    setBookSearchInput("");
-    setServerSearch("");
-  }, []);
+  const handleToggleTopic = useCallback(
+    (topic: string) => {
+      const topics = selectedTopics.includes(topic)
+        ? selectedTopics.filter((t) => t !== topic)
+        : [...selectedTopics, topic];
+      // The typed words became the filter, so the field starts clean again
+      // rather than searching for the same thing twice.
+      setBookSearchInput("");
+      applyQuery({ topics, page: 1, q: "" }, "push");
+    },
+    [applyQuery, selectedTopics],
+  );
 
   const handleInputChangeEvent = useCallback(
     (e: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement>) => {
@@ -230,13 +291,16 @@ export default function Catalog({
 
   // A shrinking result set (a narrower search) can leave us past the end.
   useEffect(() => {
-    if (page > totalPages) setPage(totalPages);
-  }, [page, totalPages]);
+    if (page > totalPages) applyQuery({ page: totalPages }, "replace");
+  }, [page, totalPages, applyQuery]);
 
-  const handlePageChange = useCallback((next: number) => {
-    setPage(next);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }, []);
+  const handlePageChange = useCallback(
+    (next: number) => {
+      applyQuery({ page: next }, "push");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    },
+    [applyQuery],
+  );
 
   const noop = useCallback(() => {}, []);
 
@@ -252,6 +316,7 @@ export default function Catalog({
         facets={facets}
         selectedTopics={selectedTopics}
         onToggleTopic={handleToggleTopic}
+        onSubmitSearch={handleSubmitSearch}
         showNewBookControl={false}
         showViewToggle={false}
       />
@@ -283,16 +348,21 @@ export const getServerSideProps: GetServerSideProps = async (
   const maxBooks = process.env.NUMBER_BOOKS_MAX
     ? parseInt(process.env.NUMBER_BOOKS_MAX)
     : 1000000;
-  const initialSearch =
-    typeof context.query.q === "string" ? context.query.q : "";
+  const initialSearch = getSingleQueryValue(context.query.q);
+  // A shared or bookmarked link, and a back navigation that reaches the
+  // server rather than the client cache, must render the page that was asked
+  // for rather than always the first one.
+  const initialPage = getPositiveInt(context.query.page) ?? 1;
+  const initialTopics = getQueryValues(context.query.topic);
 
   try {
     // Calls the same entity function the API route uses, in-process:
     // no self-HTTP round trip, no double JSON serialization.
     const data = await getPagedPublicBooks(prisma, {
-      page: 1,
+      page: initialPage,
       pageSize: numberBooksToShow,
       query: initialSearch,
+      topics: initialTopics,
     });
     const books = data.books.map(toCardBook);
     return {
@@ -302,6 +372,8 @@ export const getServerSideProps: GetServerSideProps = async (
         numberBooksToShow,
         maxBooks,
         initialSearch,
+        initialPage,
+        initialTopics,
         facets: data.facets,
       },
     };
