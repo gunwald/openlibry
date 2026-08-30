@@ -345,6 +345,105 @@ export function toListBook(
   return listBook;
 }
 
+/**
+ * The book id an all-digits query names, if any.
+ *
+ * A barcode scanner types the id, so an exact hit has to come first. Leading
+ * zeros are stripped because scanners pad them.
+ */
+export function exactIdFromQuery(query: string): number | null {
+  const q = query.trim();
+  if (!/^\d+$/.test(q)) return null;
+  const id = parseInt(q.replace(/^0+/, "") || q, 10);
+  return Number.isFinite(id) ? id : null;
+}
+
+/**
+ * Fetches one page with the exact id match pinned to the very top.
+ *
+ * Ranking has to happen before the page is cut, not after. Ordering by id and
+ * paginating put the book someone actually scanned wherever it happened to
+ * fall: searching "12" returned 41 books with number 12 not even on the first
+ * page. Reordering the fetched page cannot fix that, because the row is not on
+ * it. So the match is looked up separately and the rest of the page is filled
+ * around it, which keeps the total and the page arithmetic honest.
+ */
+async function findPagePinningExactId<T>(
+  client: PrismaClient,
+  {
+    where,
+    exactId,
+    page,
+    pageSize,
+    orderBy,
+    select,
+  }: {
+    where: Prisma.BookWhereInput | undefined;
+    exactId: number | null;
+    page: number;
+    pageSize: number;
+    orderBy:
+      | Prisma.BookOrderByWithRelationInput
+      | Prisma.BookOrderByWithRelationInput[];
+    select: any;
+  },
+): Promise<T[]> {
+  const skip = (page - 1) * pageSize;
+
+  if (exactId === null) {
+    return (await client.book.findMany({
+      select,
+      where,
+      orderBy,
+      skip,
+      take: pageSize,
+    })) as T[];
+  }
+
+  // Only pin it when the row is really in the result set.
+  const pinned = await client.book.findUnique({
+    select,
+    where: { id: exactId },
+  });
+  const pinnedMatches =
+    pinned !== null &&
+    (await client.book.count({
+      where: { AND: [...(where ? [where] : []), { id: exactId }] },
+    })) > 0;
+
+  if (!pinnedMatches) {
+    return (await client.book.findMany({
+      select,
+      where,
+      orderBy,
+      skip,
+      take: pageSize,
+    })) as T[];
+  }
+
+  const rest = { AND: [...(where ? [where] : []), { id: { not: exactId } }] };
+
+  if (page === 1) {
+    const others = (await client.book.findMany({
+      select,
+      where: rest,
+      orderBy,
+      skip: 0,
+      take: pageSize - 1,
+    })) as T[];
+    return [pinned as T, ...others];
+  }
+
+  // Later pages are shifted by the one row that was lifted onto page one.
+  return (await client.book.findMany({
+    select,
+    where: rest,
+    orderBy,
+    skip: skip - 1,
+    take: pageSize,
+  })) as T[];
+}
+
 export async function getPagedBooks(
   client: PrismaClient,
   {
@@ -358,12 +457,15 @@ export async function getPagedBooks(
 
   try {
     const [rawBooks, total, facets] = await Promise.all([
-      client.book.findMany({
-        select: listBookSelect,
+      findPagePinningExactId<
+        Prisma.BookGetPayload<{ select: typeof listBookSelect }>
+      >(client, {
         where,
+        exactId: exactIdFromQuery(query),
+        page,
+        pageSize,
         orderBy: [{ id: "desc" }],
-        skip: (page - 1) * pageSize,
-        take: pageSize,
+        select: listBookSelect,
       }),
       client.book.count({ where }),
       getTopicFacets(client, where),
@@ -492,12 +594,15 @@ export async function getPagedPublicBooks(
 
   try {
     const [rawBooks, total, facets] = await Promise.all([
-      client.book.findMany({
-        select: publicBookSelect,
+      findPagePinningExactId<
+        Prisma.BookGetPayload<{ select: typeof publicBookSelect }>
+      >(client, {
         where,
+        exactId: exactIdFromQuery(query),
+        page,
+        pageSize,
         orderBy: { title: "asc" },
-        skip: (page - 1) * pageSize,
-        take: pageSize,
+        select: publicBookSelect,
       }),
       client.book.count({ where }),
       getTopicFacets(client, where),

@@ -32,3 +32,28 @@ export function getQueryValues(value: string | string[] | undefined): string[] {
  */
 export const readQueryValue = getSingleQueryValue;
 export const readQueryValues = getQueryValues;
+
+/**
+ * The largest page a caller may ask for.
+ *
+ * A page size is a display concern, and no view shows hundreds of cards at
+ * once. Without a ceiling `?pageSize=100000` makes the server read the whole
+ * table and serialize it, which is the unbounded response the paged API was
+ * meant to replace.
+ */
+export const MAX_PAGE_SIZE = 200;
+
+/**
+ * Used when a caller asks for no particular page size. The endpoints always
+ * answer with a page now, so that a caller who names nothing still gets a
+ * bounded response rather than the whole table.
+ */
+export const DEFAULT_PAGE_SIZE = 25;
+
+/** A page size the caller asked for, clamped to something serveable. */
+export function getBoundedPageSize(
+  value: string | string[] | undefined,
+): number | null {
+  const parsed = getPositiveInt(value);
+  return parsed === null ? null : Math.min(parsed, MAX_PAGE_SIZE);
+}
