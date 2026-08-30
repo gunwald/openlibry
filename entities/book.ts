@@ -588,6 +588,32 @@ export async function getCopySiblings(
   };
 }
 
+/**
+ * How many copies of each ISBN the library holds, regardless of the filter.
+ *
+ * The count on a card answers "how many of this book do we have", so it must
+ * not change with how you searched. Counting within the filtered set made an
+ * id search read as one copy when the shelf held thirty-five, because only the
+ * scanned volume matched the query.
+ */
+async function getLibraryCopyCounts(
+  client: PrismaClient,
+  isbns: string[],
+): Promise<Map<string, number>> {
+  const wanted = Array.from(new Set(isbns.filter(Boolean)));
+  if (wanted.length === 0) return new Map();
+
+  const counts = await client.book.groupBy({
+    by: ["isbn"],
+    where: { isbn: { in: wanted } },
+    _count: { _all: true },
+  });
+
+  return new Map(
+    counts.map((row) => [row.isbn?.trim() ?? "", row._count._all]),
+  );
+}
+
 export async function getPagedBooks(
   client: PrismaClient,
   {
@@ -606,9 +632,6 @@ export async function getPagedBooks(
       exactId,
     );
     const pageGroups = groups.slice((page - 1) * pageSize, page * pageSize);
-    const copiesById = new Map(
-      pageGroups.map((g) => [g.representativeId, g.copyCount]),
-    );
 
     const [unordered, facets] = await Promise.all([
       client.book.findMany({
@@ -617,6 +640,11 @@ export async function getPagedBooks(
       }),
       getTopicFacets(client, where),
     ]);
+
+    const libraryCounts = await getLibraryCopyCounts(
+      client,
+      unordered.map((b) => b.isbn?.trim() ?? ""),
+    );
 
     // findMany returns its own order; the page order is the grouped one.
     const byId = new Map(unordered.map((b) => [b.id, b]));
@@ -628,8 +656,8 @@ export async function getPagedBooks(
     return {
       books: rawBooks.map((book) => {
         const listBook = toListBook(book);
-        const copies = copiesById.get(book.id);
-        if (copies !== undefined) listBook.copyCount = copies;
+        const isbn = book.isbn?.trim();
+        listBook.copyCount = isbn ? (libraryCounts.get(isbn) ?? 1) : 1;
         return listBook;
       }),
       total,
@@ -757,9 +785,6 @@ export async function getPagedPublicBooks(
       exactId,
     );
     const pageGroups = groups.slice((page - 1) * pageSize, page * pageSize);
-    const copiesById = new Map(
-      pageGroups.map((g) => [g.representativeId, g.copyCount]),
-    );
 
     const [unordered, facets] = await Promise.all([
       client.book.findMany({
@@ -769,6 +794,11 @@ export async function getPagedPublicBooks(
       getTopicFacets(client, where),
     ]);
 
+    const libraryCounts = await getLibraryCopyCounts(
+      client,
+      unordered.map((b) => b.isbn?.trim() ?? ""),
+    );
+
     // findMany returns its own order; the page order is the grouped one.
     const byId = new Map(unordered.map((b) => [b.id, b]));
     const rawBooks = pageGroups
@@ -776,10 +806,13 @@ export async function getPagedPublicBooks(
       .filter((b): b is (typeof unordered)[number] => b !== undefined);
 
     return {
-      books: rawBooks.map((book) => ({
-        ...toPublicBook(book),
-        copyCount: copiesById.get(book.id) ?? 1,
-      })),
+      books: rawBooks.map((book) => {
+        const isbn = book.isbn?.trim();
+        return {
+          ...toPublicBook(book),
+          copyCount: isbn ? (libraryCounts.get(isbn) ?? 1) : 1,
+        };
+      }),
       total: groups.length,
       page,
       pageSize,
