@@ -76,6 +76,7 @@ function toCardBook(b: PublicBookType | CatalogBookType): CatalogBookType {
     topics: b.topics ?? "",
     rentalStatus: b.rentalStatus,
     renewalCount: 0,
+    copyCount: b.copyCount,
     searchableTopics: b.topics ? b.topics.split(";").map((t) => t.trim()) : [],
   } as CatalogBookType;
 }

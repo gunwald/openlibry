@@ -207,10 +207,20 @@ export async function getTopicFacets(
   // either way, since it is one scan of the topics column.
   limit = 400,
 ): Promise<TopicFacet[]> {
-  const rows = await client.book.findMany({ where, select: { topics: true } });
+  // Counts titles, not copies, so a facet agrees with the result count beside
+  // it: three copies of one book are one book in both places.
+  const rows = await client.book.findMany({
+    where,
+    select: { topics: true, isbn: true, id: true },
+  });
 
+  const seenGroups = new Set<string>();
   const counts = new Map<string, number>();
   for (const row of rows) {
+    const isbn = row.isbn?.trim();
+    const groupKey = isbn ? `isbn:${isbn}` : `id:${row.id}`;
+    if (seenGroups.has(groupKey)) continue;
+    seenGroups.add(groupKey);
     if (!row.topics) continue;
     // A book tagged the same topic twice must still count once.
     const seen = new Set<string>();
@@ -444,6 +454,91 @@ async function findPagePinningExactId<T>(
   })) as T[];
 }
 
+/**
+ * A book and every other copy of it, as one row.
+ *
+ * Copies share an ISBN; a book without one is its own group, since there is
+ * nothing to match it on. The representative is an available copy where one
+ * exists, so a title with three copies out on loan and one on the shelf reads
+ * as available rather than rented.
+ */
+type BookGroup = { representativeId: number; copyCount: number };
+
+/**
+ * Groups the whole result set, then returns the requested page of groups.
+ *
+ * Grouping has to happen before the page is cut. Doing it per page made the
+ * page counter lie: with 25 to a page this library had nine groups straddling
+ * a boundary, and one page collapsed 25 books into four rows while still
+ * claiming to be one page of twenty-five.
+ *
+ * Reads four narrow columns of the matching rows and groups them in memory,
+ * the same shape as the facet counting, which keeps one implementation of the
+ * filter rather than a second one written in SQL. That is a deliberate trade
+ * for a school library of hundreds to a few thousand books; it would not suit
+ * a catalogue orders of magnitude larger.
+ */
+async function groupMatchingBooks(
+  client: PrismaClient,
+  where: Prisma.BookWhereInput | undefined,
+  orderBy:
+    Prisma.BookOrderByWithRelationInput | Prisma.BookOrderByWithRelationInput[],
+  // A scanned copy speaks for its own group even when a sibling is available:
+  // someone holding book 12 wants to see book 12, not another copy of it.
+  exactId: number | null = null,
+): Promise<BookGroup[]> {
+  const rows = await client.book.findMany({
+    where,
+    orderBy,
+    select: { id: true, isbn: true, rentalStatus: true },
+  });
+
+  const groups = new Map<string, BookGroup & { hasAvailable: boolean }>();
+  for (const row of rows) {
+    const isbn = row.isbn?.trim();
+    // Without an ISBN there is nothing to group on, so the book stands alone.
+    const key = isbn ? `isbn:${isbn}` : `id:${row.id}`;
+    const available = row.rentalStatus === "available";
+    const existing = groups.get(key);
+
+    if (!existing) {
+      groups.set(key, {
+        representativeId: row.id,
+        copyCount: 1,
+        hasAvailable: available,
+      });
+      continue;
+    }
+
+    existing.copyCount += 1;
+    if (row.id === exactId) {
+      existing.representativeId = row.id;
+      existing.hasAvailable = available;
+    } else if (
+      available &&
+      !existing.hasAvailable &&
+      existing.representativeId !== exactId
+    ) {
+      // Otherwise prefer an available copy to speak for the group.
+      existing.representativeId = row.id;
+      existing.hasAvailable = true;
+    }
+  }
+
+  return Array.from(groups.values(), ({ representativeId, copyCount }) => ({
+    representativeId,
+    copyCount,
+  }));
+}
+
+/** Moves the group holding an exactly matched id to the front. */
+function pinGroupWithId(groups: BookGroup[], exactId: number | null) {
+  if (exactId === null) return groups;
+  const index = groups.findIndex((g) => g.representativeId === exactId);
+  if (index <= 0) return groups;
+  return [groups[index], ...groups.slice(0, index), ...groups.slice(index + 1)];
+}
+
 export async function getPagedBooks(
   client: PrismaClient,
   {
@@ -454,26 +549,40 @@ export async function getPagedBooks(
   }: { page: number; pageSize: number; query?: string; topics?: string[] },
 ): Promise<PagedBooks> {
   const where = withTopics(getBookWhere(query), topics);
+  const exactId = exactIdFromQuery(query);
 
   try {
-    const [rawBooks, total, facets] = await Promise.all([
-      findPagePinningExactId<
-        Prisma.BookGetPayload<{ select: typeof listBookSelect }>
-      >(client, {
-        where,
-        exactId: exactIdFromQuery(query),
-        page,
-        pageSize,
-        orderBy: [{ id: "desc" }],
+    const groups = pinGroupWithId(
+      await groupMatchingBooks(client, where, [{ id: "desc" }], exactId),
+      exactId,
+    );
+    const pageGroups = groups.slice((page - 1) * pageSize, page * pageSize);
+    const copiesById = new Map(
+      pageGroups.map((g) => [g.representativeId, g.copyCount]),
+    );
+
+    const [unordered, facets] = await Promise.all([
+      client.book.findMany({
         select: listBookSelect,
+        where: { id: { in: pageGroups.map((g) => g.representativeId) } },
       }),
-      client.book.count({ where }),
       getTopicFacets(client, where),
     ]);
-    const copyCountsByIsbn = await getCopyCountsByIsbn(client, rawBooks, where);
+
+    // findMany returns its own order; the page order is the grouped one.
+    const byId = new Map(unordered.map((b) => [b.id, b]));
+    const rawBooks = pageGroups
+      .map((g) => byId.get(g.representativeId))
+      .filter((b): b is (typeof unordered)[number] => b !== undefined);
+    const total = groups.length;
 
     return {
-      books: rawBooks.map((book) => toListBook(book, copyCountsByIsbn)),
+      books: rawBooks.map((book) => {
+        const listBook = toListBook(book);
+        const copies = copiesById.get(book.id);
+        if (copies !== undefined) listBook.copyCount = copies;
+        return listBook;
+      }),
       total,
       page,
       pageSize,
@@ -591,26 +700,38 @@ export async function getPagedPublicBooks(
   }: { page: number; pageSize: number; query?: string; topics?: string[] },
 ): Promise<PagedPublicBooks> {
   const where = withTopics(getPublicBookWhere(query), topics);
+  const exactId = exactIdFromQuery(query);
 
   try {
-    const [rawBooks, total, facets] = await Promise.all([
-      findPagePinningExactId<
-        Prisma.BookGetPayload<{ select: typeof publicBookSelect }>
-      >(client, {
-        where,
-        exactId: exactIdFromQuery(query),
-        page,
-        pageSize,
-        orderBy: { title: "asc" },
+    const groups = pinGroupWithId(
+      await groupMatchingBooks(client, where, { title: "asc" }, exactId),
+      exactId,
+    );
+    const pageGroups = groups.slice((page - 1) * pageSize, page * pageSize);
+    const copiesById = new Map(
+      pageGroups.map((g) => [g.representativeId, g.copyCount]),
+    );
+
+    const [unordered, facets] = await Promise.all([
+      client.book.findMany({
         select: publicBookSelect,
+        where: { id: { in: pageGroups.map((g) => g.representativeId) } },
       }),
-      client.book.count({ where }),
       getTopicFacets(client, where),
     ]);
 
+    // findMany returns its own order; the page order is the grouped one.
+    const byId = new Map(unordered.map((b) => [b.id, b]));
+    const rawBooks = pageGroups
+      .map((g) => byId.get(g.representativeId))
+      .filter((b): b is (typeof unordered)[number] => b !== undefined);
+
     return {
-      books: rawBooks.map(toPublicBook),
-      total,
+      books: rawBooks.map((book) => ({
+        ...toPublicBook(book),
+        copyCount: copiesById.get(book.id) ?? 1,
+      })),
+      total: groups.length,
       page,
       pageSize,
       facets,

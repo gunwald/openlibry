@@ -29,4 +29,6 @@ export interface BookType {
   price?: string;
   externalLinks?: string;
   userId?: number;
+  /** How many copies of this title the library holds. */
+  copyCount?: number;
 }

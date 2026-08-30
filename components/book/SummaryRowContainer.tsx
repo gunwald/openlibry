@@ -1,7 +1,7 @@
 import BookSummaryRow from "@/components/book/BookSummaryRow";
 import PaginationControls from "@/components/book/PaginationControls";
 import { BookType } from "@/entities/BookType";
-import { memo, useMemo } from "react";
+import { memo } from "react";
 
 type SummaryBook = BookType & { copyCount?: number };
 
@@ -20,26 +20,13 @@ const SummaryRowContainer = memo(function SummaryRowContainer({
   onPageChange,
   onCopyBook,
 }: SummaryRowContainerProps) {
-  const groupedBooks = useMemo(() => {
-    const map = new Map<string, SummaryBook[]>();
-
-    for (const book of renderedBooks) {
-      const key = book.isbn?.trim() ? book.isbn.trim() : `__no_isbn_${book.id}`;
-      const group = map.get(key) ?? [];
-      group.push(book);
-      map.set(key, group);
-    }
-
-    return Array.from(map.values()).map((group) => {
-      const representative =
-        group.find((b) => b.rentalStatus !== "rented") ?? group[0];
-      const copyCount = Math.max(
-        group.length,
-        ...group.map((book) => book.copyCount ?? 0),
-      );
-      return { book: representative, count: copyCount };
-    });
-  }, [renderedBooks]);
+  // Grouping is the server's job now. Doing it here grouped only what happened
+  // to be on the page, so a page of twenty-five copies could collapse into four
+  // rows while the pager still called it a page of twenty-five.
+  const groupedBooks = renderedBooks.map((book) => ({
+    book,
+    count: book.copyCount ?? 1,
+  }));
 
   return (
     <div className="flex flex-col gap-2 w-full">
