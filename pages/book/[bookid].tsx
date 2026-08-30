@@ -1,7 +1,8 @@
 import { parseIdParam } from "@/lib/utils/apiValidation";
 import BookEditForm from "@/components/book/BookEditForm";
+import CopyNavigator from "@/components/book/CopyNavigator";
 import Layout from "@/components/layout/Layout";
-import { getBook } from "@/entities/book";
+import { CopySiblings, getBook, getCopySiblings } from "@/entities/book";
 import { BookType } from "@/entities/BookType";
 import { prisma } from "@/entities/db";
 import { useBookEditor } from "@/hooks/useBookEditor";
@@ -17,12 +18,14 @@ interface BookDetailProps {
   book: BookType;
   topics: string[];
   deleteSafetySeconds: number;
+  copies: CopySiblings | null;
 }
 
 export default function BookDetail({
   book,
   topics,
   deleteSafetySeconds,
+  copies,
 }: BookDetailProps) {
   const router = useRouter();
 
@@ -38,6 +41,19 @@ export default function BookDetail({
 
   return (
     <Layout>
+      {/* Which volume this is, and how to reach the others. The list groups
+          copies into one row, so without this the rest are unreachable. Staff
+          get the number too, to put a hand on the right one. */}
+      {copies && (
+        <div className="flex justify-center pt-4">
+          <CopyNavigator
+            copies={copies}
+            basePath="/book"
+            showId
+            bookId={book.id}
+          />
+        </div>
+      )}
       <BookEditForm
         book={editor.bookData}
         setBookData={editor.setBookData}
@@ -70,6 +86,7 @@ export async function getServerSideProps(context: GetServerSidePropsContext) {
   }
 
   const topics = await getUniqueTopics(prisma);
+  const copies = await getCopySiblings(prisma, book.id);
 
-  return { props: { book, topics, deleteSafetySeconds } };
+  return { props: { book, topics, deleteSafetySeconds, copies } };
 }

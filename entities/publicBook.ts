@@ -1,5 +1,6 @@
 import { PublicBookDetailType } from "@/entities/PublicBookDetailType";
 import { PublicBookType } from "@/entities/PublicBookType";
+import { getCopySiblings } from "@/entities/book";
 import { PrismaClient } from "@prisma/client";
 
 const RELATED_LIMIT = 5;
@@ -158,5 +159,6 @@ export async function getPublicBookDetail(
     minAge: book.minAge,
     maxAge: book.maxAge,
     relatedBooks,
+    copies: await getCopySiblings(client, book.id),
   };
 }

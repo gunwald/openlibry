@@ -1275,6 +1275,14 @@ export const de = {
     copies: "{count} Exemplare",
   },
 
+  copies: {
+    label: "Exemplare dieses Titels",
+    position: "Exemplar {position} von {total}",
+    available: "{count} verfügbar",
+    previous: "Vorheriges Exemplar",
+    next: "Nächstes Exemplar",
+  },
+
   facets: {
     label: "Schlagwörter filtern",
   },

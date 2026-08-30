@@ -1183,6 +1183,14 @@ export const en: Dictionary = {
     copies: "{count} copies",
   },
 
+  copies: {
+    label: "Copies of this title",
+    position: "Copy {position} of {total}",
+    available: "{count} available",
+    previous: "Previous copy",
+    next: "Next copy",
+  },
+
   facets: {
     label: "Filter by topic",
   },
