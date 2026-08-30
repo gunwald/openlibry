@@ -28,6 +28,8 @@ interface BookSearchBarProps {
   facets?: TopicFacet[];
   selectedTopics?: string[];
   onToggleTopic?: (topic: string) => void;
+  /** Runs the search. Called on Enter, not while typing. */
+  onSubmitSearch?: (value: string) => void;
 }
 
 /** Topic suggestions shown at once; more than this is a list, not a hint. */
@@ -45,6 +47,7 @@ export default function BookSearchBar({
   facets = [],
   selectedTopics = [],
   onToggleTopic,
+  onSubmitSearch,
 }: BookSearchBarProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
@@ -95,7 +98,11 @@ export default function BookSearchBar({
           {/* ── Search input ────────────────────────────────────── */}
           <form
             ref={formRef}
-            onSubmit={(e) => e.preventDefault()}
+            onSubmit={(e) => {
+              e.preventDefault();
+              setMenuOpen(false);
+              onSubmitSearch?.(bookSearchInput);
+            }}
             onKeyDown={(e) => {
               if (e.key === "Escape") setMenuOpen(false);
             }}

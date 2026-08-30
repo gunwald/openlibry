@@ -6,7 +6,7 @@
 export function getSingleQueryValue(
   value: string | string[] | undefined,
 ): string {
-  return Array.isArray(value) ? value[0] ?? "" : value ?? "";
+  return Array.isArray(value) ? (value[0] ?? "") : (value ?? "");
 }
 
 export function getPositiveInt(
@@ -20,10 +20,15 @@ export function getPositiveInt(
  * Reads a parameter that may be repeated (`?topic=a&topic=b`), always as a
  * list. Repeats rather than a delimiter so a value can contain any character.
  */
-export function getQueryValues(
-  value: string | string[] | undefined,
-): string[] {
+export function getQueryValues(value: string | string[] | undefined): string[] {
   if (value === undefined) return [];
   const list = Array.isArray(value) ? value : [value];
   return list.map((v) => v.trim()).filter(Boolean);
 }
+
+/**
+ * The same two readers for `router.query` on the client, where a parameter is
+ * likewise `string | string[] | undefined`.
+ */
+export const readQueryValue = getSingleQueryValue;
+export const readQueryValues = getQueryValues;
