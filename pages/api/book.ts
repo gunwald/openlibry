@@ -10,6 +10,7 @@ import { LogEvents } from "@/lib/logEvents";
 import { businessLogger, errorLogger } from "@/lib/logger";
 import {
   DEFAULT_PAGE_SIZE,
+  configuredMaxTitles,
   getBoundedPageSize,
   getPositiveInt,
   getQueryValues,
@@ -71,6 +72,7 @@ export default async function handler(
           query: q,
           topics,
           copiesOf,
+          maxTitles: configuredMaxTitles(),
         });
         return res.status(200).json(result);
       } catch (error) {
