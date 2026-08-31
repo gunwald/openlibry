@@ -223,20 +223,30 @@ export async function getTopicFacets(
     select: { topics: true, isbn: true, id: true },
   });
 
-  const seenGroups = new Set<string>();
-  const counts = new Map<string, number>();
+  // Topics are collected across a whole group before counting. Skipping the
+  // sibling rows outright would drop any topic that only one copy carries,
+  // and then a facet could say a topic has no books while filtering by it
+  // returned that very title, because the filter matches any copy.
+  const topicsByGroup = new Map<string, Set<string>>();
   for (const row of rows) {
     const isbn = row.isbn?.trim();
     const groupKey = isbn ? `isbn:${isbn}` : `id:${row.id}`;
-    if (seenGroups.has(groupKey)) continue;
-    seenGroups.add(groupKey);
+    let group = topicsByGroup.get(groupKey);
+    if (!group) {
+      group = new Set<string>();
+      topicsByGroup.set(groupKey, group);
+    }
     if (!row.topics) continue;
-    // A book tagged the same topic twice must still count once.
-    const seen = new Set<string>();
     for (const raw of row.topics.split(";")) {
       const topic = raw.trim();
-      if (!topic || seen.has(topic)) continue;
-      seen.add(topic);
+      // A Set per group, so a topic on several copies still counts once.
+      if (topic) group.add(topic);
+    }
+  }
+
+  const counts = new Map<string, number>();
+  for (const group of topicsByGroup.values()) {
+    for (const topic of group) {
       counts.set(topic, (counts.get(topic) ?? 0) + 1);
     }
   }
@@ -630,16 +640,35 @@ export async function getPagedBooks(
     pageSize,
     query = "",
     topics = [],
-  }: { page: number; pageSize: number; query?: string; topics?: string[] },
+    copiesOf,
+  }: {
+    page: number;
+    pageSize: number;
+    query?: string;
+    topics?: string[];
+    // Listing the copies of one title is the one case that must not group:
+    // the whole point is to see each physical volume and its status.
+    copiesOf?: string;
+  },
 ): Promise<PagedBooks> {
-  const where = withTopics(getBookWhere(query), topics);
-  const exactId = exactIdFromQuery(query);
+  const isbn = copiesOf?.trim();
+  const where = isbn ? { isbn } : withTopics(getBookWhere(query), topics);
+  const exactId = isbn ? null : exactIdFromQuery(query);
 
   try {
-    const groups = pinGroupWithId(
-      await groupMatchingBooks(client, where, [{ id: "desc" }], exactId),
-      exactId,
-    );
+    const groups = isbn
+      ? // Every copy is its own row here, so the list enumerates the volumes.
+        (
+          await client.book.findMany({
+            where,
+            orderBy: [{ id: "asc" }],
+            select: { id: true },
+          })
+        ).map((b) => ({ representativeId: b.id, copyCount: 1 }))
+      : pinGroupWithId(
+          await groupMatchingBooks(client, where, [{ id: "desc" }], exactId),
+          exactId,
+        );
     const pageGroups = groups.slice((page - 1) * pageSize, page * pageSize);
 
     const [unordered, facets] = await Promise.all([

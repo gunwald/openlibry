@@ -63,12 +63,14 @@ export default async function handler(
         const page = getPositiveInt(req.query.page) ?? 1;
         const q = getSingleQueryValue(req.query.q);
         const topics = getQueryValues(req.query.topic);
+        const copiesOf = getSingleQueryValue(req.query.copiesOf);
 
         const result = await getPagedBooks(prisma, {
           page,
           pageSize: pageSize ?? DEFAULT_PAGE_SIZE,
           query: q,
           topics,
+          copiesOf,
         });
         return res.status(200).json(result);
       } catch (error) {

@@ -50,6 +50,23 @@ export const MAX_PAGE_SIZE = 200;
  */
 export const DEFAULT_PAGE_SIZE = 25;
 
+/**
+ * The page size a list actually uses.
+ *
+ * The same number has to reach the server-rendered first page, the URLs the
+ * client builds, and the page-count arithmetic. Capping only at the API
+ * boundary made a configuration above the cap incoherent: with
+ * NUMBER_BOOKS_OVERVIEW at 500 the rendered page held 500 rows and page two
+ * skipped 500, while the API answered 200 and skipped 200, so rows in between
+ * were unreachable and the page count was wrong.
+ */
+export function effectivePageSize(
+  numberBooksToShow: number,
+  maxBooks: number,
+): number {
+  return Math.max(1, Math.min(numberBooksToShow, maxBooks, MAX_PAGE_SIZE));
+}
+
 /** A page size the caller asked for, clamped to something serveable. */
 export function getBoundedPageSize(
   value: string | string[] | undefined,

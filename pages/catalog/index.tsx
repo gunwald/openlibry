@@ -10,6 +10,7 @@ import { PublicBookType } from "@/entities/PublicBookType";
 import { LogEvents } from "@/lib/logEvents";
 import { errorLogger } from "@/lib/logger";
 import {
+  effectivePageSize,
   getPositiveInt,
   getQueryValues,
   getSingleQueryValue,
@@ -203,7 +204,7 @@ export default function Catalog({
     }
   }, [bookSearchInput, serverSearch, applyQuery]);
 
-  const pageSize = Math.min(numberBooksToShow, maxBooks);
+  const pageSize = effectivePageSize(numberBooksToShow, maxBooks);
 
   // One builder for both keys below, so the comparison cannot drift apart.
   const buildUrl = useCallback(
@@ -361,7 +362,7 @@ export const getServerSideProps: GetServerSideProps = async (
     // no self-HTTP round trip, no double JSON serialization.
     const data = await getPagedPublicBooks(prisma, {
       page: initialPage,
-      pageSize: numberBooksToShow,
+      pageSize: effectivePageSize(numberBooksToShow, maxBooks),
       query: initialSearch,
       topics: initialTopics,
     });

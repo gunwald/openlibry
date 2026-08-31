@@ -120,7 +120,10 @@ export default function BookSummaryRow({
                   aria-label="show-all-copies"
                   onClick={() =>
                     router.push(
-                      `/book?q=${encodeURIComponent(book.isbn ?? "")}`,
+                      // Ask for the copies rather than searching the ISBN:
+                      // a search groups them back into the single row we are
+                      // standing on.
+                      `/book?copiesOf=${encodeURIComponent(book.isbn ?? "")}`,
                     )
                   }
                   data-cy={`book_copies_button_${book.id}`}
