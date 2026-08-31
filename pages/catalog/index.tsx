@@ -379,6 +379,7 @@ export const getServerSideProps: GetServerSideProps = async (
       pageSize: effectivePageSize(numberBooksToShow, maxBooks),
       query: initialSearch,
       topics: initialTopics,
+      maxTitles: maxBooks,
     });
     const books = data.books.map(toCardBook);
     return {

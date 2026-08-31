@@ -703,6 +703,7 @@ export async function getPagedBooks(
     query = "",
     topics = [],
     copiesOf,
+    maxTitles,
   }: {
     page: number;
     pageSize: number;
@@ -711,6 +712,8 @@ export async function getPagedBooks(
     // Listing the copies of one title is the one case that must not group:
     // the whole point is to see each physical volume and its status.
     copiesOf?: string;
+    /** Ceiling on how many titles a deployment will show at all. */
+    maxTitles?: number;
   },
 ): Promise<PagedBooks> {
   const isbn = copiesOf?.trim();
@@ -740,7 +743,12 @@ export async function getPagedBooks(
           ),
           exactId,
         );
-    const pageGroups = groups.slice((page - 1) * pageSize, page * pageSize);
+    // The ceiling binds the rows, not just the page count: without it a pager
+    // that showed two pages of a fifteen-title cap still served rows 11 to 20
+    // on page two.
+    const capped =
+      maxTitles && maxTitles > 0 ? groups.slice(0, maxTitles) : groups;
+    const pageGroups = capped.slice((page - 1) * pageSize, page * pageSize);
 
     const [unordered, facets] = await Promise.all([
       client.book.findMany({
@@ -765,7 +773,7 @@ export async function getPagedBooks(
     const rawBooks = pageGroups
       .map((g) => byId.get(g.representativeId))
       .filter((b): b is (typeof unordered)[number] => b !== undefined);
-    const total = groups.length;
+    const total = capped.length;
 
     return {
       books: rawBooks.map((book) => {
@@ -888,7 +896,15 @@ export async function getPagedPublicBooks(
     pageSize,
     query = "",
     topics = [],
-  }: { page: number; pageSize: number; query?: string; topics?: string[] },
+    maxTitles,
+  }: {
+    page: number;
+    pageSize: number;
+    query?: string;
+    topics?: string[];
+    /** Ceiling on how many titles a deployment will show at all. */
+    maxTitles?: number;
+  },
 ): Promise<PagedPublicBooks> {
   // Topics are applied to titles below rather than to rows here.
   const where = getPublicBookWhere(query);
@@ -902,7 +918,12 @@ export async function getPagedPublicBooks(
       ),
       exactId,
     );
-    const pageGroups = groups.slice((page - 1) * pageSize, page * pageSize);
+    // The ceiling binds the rows, not just the page count: without it a pager
+    // that showed two pages of a fifteen-title cap still served rows 11 to 20
+    // on page two.
+    const capped =
+      maxTitles && maxTitles > 0 ? groups.slice(0, maxTitles) : groups;
+    const pageGroups = capped.slice((page - 1) * pageSize, page * pageSize);
 
     const [unordered, facets] = await Promise.all([
       client.book.findMany({
@@ -931,7 +952,7 @@ export async function getPagedPublicBooks(
           copyCount: isbn ? (libraryCounts.get(isbn) ?? 1) : 1,
         };
       }),
-      total: groups.length,
+      total: capped.length,
       page,
       pageSize,
       facets,

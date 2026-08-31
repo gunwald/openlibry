@@ -9,6 +9,7 @@ import { LogEvents } from "@/lib/logEvents";
 import { businessLogger, errorLogger } from "@/lib/logger";
 import {
   DEFAULT_PAGE_SIZE,
+  configuredMaxTitles,
   getBoundedPageSize,
   getPositiveInt,
   getQueryValues,
@@ -62,6 +63,7 @@ export default async function handler(
       pageSize: pageSize ?? DEFAULT_PAGE_SIZE,
       query: q,
       topics,
+      maxTitles: configuredMaxTitles(),
     });
 
     businessLogger.info(

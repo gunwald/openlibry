@@ -407,6 +407,7 @@ export const getServerSideProps: GetServerSideProps = async (
       query: initialSearch,
       topics: initialTopics,
       copiesOf: initialCopiesOf,
+      maxTitles: maxBooks,
     });
 
     return {
