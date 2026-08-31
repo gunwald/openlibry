@@ -20,6 +20,7 @@ import {
 import { prisma, reconnectPrisma } from "@/entities/db";
 import { t } from "@/lib/i18n";
 import {
+  effectivePageSize,
   getPositiveInt,
   getQueryValues,
   getSingleQueryValue,
@@ -104,6 +105,7 @@ export default function Books({
   // mounted, and scrolling and typing get slower the longer it is used.
   const serverSearch = readQueryValue(router.query.q);
   const selectedTopics = readQueryValues(router.query.topic);
+  const copiesOf = readQueryValue(router.query.copiesOf);
   const page = Math.max(
     1,
     parseInt(readQueryValue(router.query.page), 10) || 1,
@@ -172,14 +174,15 @@ export default function Books({
     (requestedPage: number, query: string, topics: string[]) => {
       const params = new URLSearchParams({
         page: String(requestedPage),
-        pageSize: Math.min(numberBooksToShow, maxBooks).toString(),
+        pageSize: String(effectivePageSize(numberBooksToShow, maxBooks)),
       });
       if (query.trim()) params.set("q", query.trim());
       // Repeated rather than delimited, so a topic may contain any character.
       for (const topic of topics) params.append("topic", topic);
+      if (copiesOf) params.set("copiesOf", copiesOf);
       return `/api/book?${params.toString()}`;
     },
-    [numberBooksToShow, maxBooks],
+    [numberBooksToShow, maxBooks, copiesOf],
   );
 
   const requestUrl = useMemo(
@@ -202,7 +205,7 @@ export default function Books({
             books: initialBooks,
             total: initialTotal,
             page: initialPage,
-            pageSize: numberBooksToShow,
+            pageSize: effectivePageSize(numberBooksToShow, maxBooks),
             facets: initialFacets,
           }
         : undefined,
@@ -222,26 +225,11 @@ export default function Books({
   const books = freshData?.books || initialBooks;
   const resultCount = freshData?.total ?? initialTotal;
 
-
-  // Numeric-query priority sort: if the query contains digits, bubble books
-  // whose title contains those digits to the top. Runs only when the query
-  // or the base results change — no extra state needed.
-  const renderedBooks = useMemo(() => {
-    const numbersInQuery = bookSearchInput.match(/\d+/g);
-    if (!numbersInQuery) return books;
-
-    return [...books].sort((a, b) => {
-      const aMatch = numbersInQuery.some((n) =>
-        a.title?.toString().includes(n),
-      );
-      const bMatch = numbersInQuery.some((n) =>
-        b.title?.toString().includes(n),
-      );
-      if (aMatch && !bMatch) return -1;
-      if (!aMatch && bMatch) return 1;
-      return 0;
-    });
-  }, [books, bookSearchInput]);
+  // No client-side reordering. The server ranks an exact id match to the top
+  // of the first page before paginating; re-sorting here could only reorder the
+  // page already fetched, and the title-first rule it used actually undid the
+  // pin whenever the scanned book's title did not contain the digits.
+  const renderedBooks = books;
 
   // Adapt hook's string-based handler to the event-based signature
   // BookSearchBar expects, and reset pagination on every new search.
@@ -288,7 +276,7 @@ export default function Books({
     applyQuery({ listView: detailView }, "push");
   }, [applyQuery, detailView]);
 
-  const pageSize = Math.min(numberBooksToShow, maxBooks);
+  const pageSize = effectivePageSize(numberBooksToShow, maxBooks);
   const totalPages = Math.max(
     1,
     Math.ceil(Math.min(resultCount, maxBooks) / pageSize),
@@ -390,14 +378,16 @@ export const getServerSideProps: GetServerSideProps = async (
     const initialSearch = getSingleQueryValue(context.query.q);
     const initialPage = getPositiveInt(context.query.page) ?? 1;
     const initialTopics = getQueryValues(context.query.topic);
+    const initialCopiesOf = getSingleQueryValue(context.query.copiesOf);
 
     // Same entity function the API route uses, in-process — SSR and client
     // revalidation can't drift apart.
     const { books, total, facets } = await getPagedBooks(prisma, {
       page: initialPage,
-      pageSize: numberBooksToShow,
+      pageSize: effectivePageSize(numberBooksToShow, maxBooks),
       query: initialSearch,
       topics: initialTopics,
+      copiesOf: initialCopiesOf,
     });
 
     return {
