@@ -37,7 +37,7 @@ const StatusBadge = memo(function StatusBadge({
 
   return (
     <div
-      className={`absolute top-2.5 left-2.5 z-[4] flex items-center gap-1.5
+      className={`absolute top-2.5 left-2.5 z-[4] pointer-events-none flex items-center gap-1.5
                   px-2 py-1 rounded-full backdrop-blur-lg shadow-[0_2px_8px_rgba(0,0,0,0.2)]
                   ${style.bgClass}`}
       role="status"

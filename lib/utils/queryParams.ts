@@ -74,3 +74,17 @@ export function getBoundedPageSize(
   const parsed = getPositiveInt(value);
   return parsed === null ? null : Math.min(parsed, MAX_PAGE_SIZE);
 }
+
+/**
+ * How many titles a deployment is willing to show at all.
+ *
+ * Read here rather than in each caller so the API and the server-rendered
+ * page agree: the pager already divided by this, but the query did not, so a
+ * capped library still served rows past the ceiling on later pages.
+ */
+export function configuredMaxTitles(): number | undefined {
+  const raw = process.env.NUMBER_BOOKS_MAX;
+  if (!raw) return undefined;
+  const parsed = parseInt(raw, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+}

@@ -204,7 +204,13 @@ function BookSummaryCard({
         <StatusBadge rentalStatus={book.rentalStatus} />
 
         {/* Top-right: Book ID + Return Button */}
-        <div className="absolute top-2.5 right-2.5 z-[4] flex items-center gap-1">
+        {/* Sits above the card-wide link, so it must let clicks through:
+            these corners looked clickable and did nothing. The return button
+            below takes its own events back. */}
+        <div
+          className="absolute top-2.5 right-2.5 z-[4] flex items-center gap-1
+                     pointer-events-none"
+        >
           <span
             className="px-1.5 py-0.5 rounded-lg bg-black/40 backdrop-blur-lg
                      text-[0.6rem] font-medium text-white/95"
