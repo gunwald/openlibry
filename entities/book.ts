@@ -489,7 +489,54 @@ async function findPagePinningExactId<T>(
  * exists, so a title with three copies out on loan and one on the shelf reads
  * as available rather than rented.
  */
-type BookGroup = { representativeId: number; copyCount: number };
+type BookGroup = {
+  representativeId: number;
+  copyCount: number;
+  /** Every topic any copy of this title carries. */
+  topics: Set<string>;
+};
+
+/** The topics one row carries, trimmed and de-duplicated. */
+function parseTopicList(topics: string | null): Set<string> {
+  const out = new Set<string>();
+  if (!topics) return out;
+  for (const raw of topics.split(";")) {
+    const topic = raw.trim();
+    if (topic) out.add(topic);
+  }
+  return out;
+}
+
+/**
+ * Keeps the titles whose copies together carry every selected topic.
+ *
+ * Matching a single row contradicted the facet counts: a facet counts a title
+ * once if any copy carries the topic, so a title with Lyrik on one copy and
+ * Exil on another is advertised under both, yet requiring one row to carry
+ * both returned nothing for that pair. Tagging works per copy, so the
+ * divergence appears as soon as one volume of a title is tagged.
+ */
+function groupsMatchingTopics(
+  groups: BookGroup[],
+  topics: string[],
+): BookGroup[] {
+  const selected = topics.map((t) => t.trim()).filter(Boolean);
+  if (selected.length === 0) return groups;
+  return groups.filter((g) => selected.every((t) => g.topics.has(t)));
+}
+
+/** Topic counts over already-grouped titles, most common first. */
+function facetsFromGroups(groups: BookGroup[], limit = 400): TopicFacet[] {
+  const counts = new Map<string, number>();
+  for (const group of groups) {
+    for (const topic of group.topics) {
+      counts.set(topic, (counts.get(topic) ?? 0) + 1);
+    }
+  }
+  return Array.from(counts, ([topic, count]) => ({ topic, count }))
+    .sort((a, b) => b.count - a.count || a.topic.localeCompare(b.topic))
+    .slice(0, limit);
+}
 
 /**
  * Groups the whole result set, then returns the requested page of groups.
@@ -517,7 +564,7 @@ async function groupMatchingBooks(
   const rows = await client.book.findMany({
     where,
     orderBy,
-    select: { id: true, isbn: true, rentalStatus: true },
+    select: { id: true, isbn: true, rentalStatus: true, topics: true },
   });
 
   const groups = new Map<string, BookGroup & { hasAvailable: boolean }>();
@@ -533,9 +580,12 @@ async function groupMatchingBooks(
         representativeId: row.id,
         copyCount: 1,
         hasAvailable: available,
+        topics: parseTopicList(row.topics),
       });
       continue;
     }
+
+    for (const topic of parseTopicList(row.topics)) existing.topics.add(topic);
 
     existing.copyCount += 1;
     if (row.id === exactId) {
@@ -552,10 +602,14 @@ async function groupMatchingBooks(
     }
   }
 
-  return Array.from(groups.values(), ({ representativeId, copyCount }) => ({
-    representativeId,
-    copyCount,
-  }));
+  return Array.from(
+    groups.values(),
+    ({ representativeId, copyCount, topics }) => ({
+      representativeId,
+      copyCount,
+      topics,
+    }),
+  );
 }
 
 /** Moves the group holding an exactly matched id to the front. */
@@ -660,7 +714,9 @@ export async function getPagedBooks(
   },
 ): Promise<PagedBooks> {
   const isbn = copiesOf?.trim();
-  const where = isbn ? { isbn } : withTopics(getBookWhere(query), topics);
+  // Topics are applied to titles below rather than to rows here: a title
+  // matches when its copies together carry them.
+  const where = isbn ? { isbn } : getBookWhere(query);
   const exactId = isbn ? null : exactIdFromQuery(query);
 
   try {
@@ -672,9 +728,16 @@ export async function getPagedBooks(
             orderBy: [{ id: "asc" }],
             select: { id: true },
           })
-        ).map((b) => ({ representativeId: b.id, copyCount: 1 }))
+        ).map((b) => ({
+          representativeId: b.id,
+          copyCount: 1,
+          topics: new Set<string>(),
+        }))
       : pinGroupWithId(
-          await groupMatchingBooks(client, where, [{ id: "desc" }], exactId),
+          groupsMatchingTopics(
+            await groupMatchingBooks(client, where, [{ id: "desc" }], exactId),
+            topics,
+          ),
           exactId,
         );
     const pageGroups = groups.slice((page - 1) * pageSize, page * pageSize);
@@ -684,7 +747,7 @@ export async function getPagedBooks(
         select: listBookSelect,
         where: { id: { in: pageGroups.map((g) => g.representativeId) } },
       }),
-      getTopicFacets(client, where),
+      Promise.resolve(facetsFromGroups(groups)),
     ]);
 
     // Not in copies mode: there every row is one physical volume, so stamping
@@ -827,12 +890,16 @@ export async function getPagedPublicBooks(
     topics = [],
   }: { page: number; pageSize: number; query?: string; topics?: string[] },
 ): Promise<PagedPublicBooks> {
-  const where = withTopics(getPublicBookWhere(query), topics);
+  // Topics are applied to titles below rather than to rows here.
+  const where = getPublicBookWhere(query);
   const exactId = exactIdFromQuery(query);
 
   try {
     const groups = pinGroupWithId(
-      await groupMatchingBooks(client, where, { title: "asc" }, exactId),
+      groupsMatchingTopics(
+        await groupMatchingBooks(client, where, { title: "asc" }, exactId),
+        topics,
+      ),
       exactId,
     );
     const pageGroups = groups.slice((page - 1) * pageSize, page * pageSize);
@@ -842,7 +909,7 @@ export async function getPagedPublicBooks(
         select: publicBookSelect,
         where: { id: { in: pageGroups.map((g) => g.representativeId) } },
       }),
-      getTopicFacets(client, where),
+      Promise.resolve(facetsFromGroups(groups)),
     ]);
 
     const libraryCounts = await getLibraryCopyCounts(
