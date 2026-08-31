@@ -176,14 +176,22 @@ export function getBookWhere(query: string): Prisma.BookWhereInput | undefined {
  * topic, the first, the last, or somewhere in the middle.
  */
 export function topicWhere(topic: string): Prisma.BookWhereInput {
-  return {
-    OR: [
-      { topics: topic },
+  // Counting trims each entry, so "Abenteuer; Freundschaft" advertises
+  // Freundschaft as a facet. Matching has to accept the same spacing or the
+  // facet would offer a filter that returns nothing. Both separator forms are
+  // listed rather than trimming in SQL, which Prisma cannot express in a
+  // where clause.
+  const separators = [";", "; "];
+  const variants: Prisma.BookWhereInput[] = [{ topics: topic }];
+  for (const sep of separators) {
+    variants.push(
       { topics: { startsWith: `${topic};` } },
-      { topics: { endsWith: `;${topic}` } },
-      { topics: { contains: `;${topic};` } },
-    ],
-  };
+      { topics: { endsWith: `${sep}${topic}` } },
+      { topics: { contains: `${sep}${topic};` } },
+      { topics: { contains: `${sep}${topic}; ` } },
+    );
+  }
+  return { OR: variants };
 }
 
 /** Combines the text query with any selected topics, all ANDed together. */
@@ -679,10 +687,15 @@ export async function getPagedBooks(
       getTopicFacets(client, where),
     ]);
 
-    const libraryCounts = await getLibraryCopyCounts(
-      client,
-      unordered.map((b) => b.isbn?.trim() ?? ""),
-    );
+    // Not in copies mode: there every row is one physical volume, so stamping
+    // each with the library-wide total made all thirty-five look like their
+    // own group of thirty-five.
+    const libraryCounts = isbn
+      ? new Map<string, number>()
+      : await getLibraryCopyCounts(
+          client,
+          unordered.map((b) => b.isbn?.trim() ?? ""),
+        );
 
     // findMany returns its own order; the page order is the grouped one.
     const byId = new Map(unordered.map((b) => [b.id, b]));

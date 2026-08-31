@@ -20,6 +20,9 @@ interface FacetBarProps {
  */
 const MAX_PILLS = 5;
 
+/** Only a few pills fit on one row; measuring beyond this cannot change it. */
+const MEASURE_LIMIT = 12;
+
 const pillBase =
   "inline-flex items-center gap-1.5 shrink-0 h-7 px-3 rounded-full " +
   "text-xs font-medium border transition-colors duration-150 cursor-pointer";
@@ -30,9 +33,18 @@ const pillActive =
 
 function FacetBar({ facets, selected, onToggle }: FacetBarProps) {
   const rowRef = useRef<HTMLDivElement>(null);
+  const measureRef = useRef<HTMLDivElement>(null);
   const [visibleCount, setVisibleCount] = useState(MAX_PILLS);
 
-  const active = facets.filter((f) => selected.includes(f.topic));
+  // A selected topic stays on the row even when the current filter leaves it
+  // with no books: it was derived from the counts alone, so narrowing to an
+  // empty combination made the pill that caused it disappear, and there was
+  // nothing left to click to undo it.
+  const counted = new Map(facets.map((f) => [f.topic, f.count]));
+  const active = selected.map((topic) => ({
+    topic,
+    count: counted.get(topic) ?? 0,
+  }));
   const rest = facets.filter((f) => !selected.includes(f.topic));
   const ordered = [...active, ...rest];
 
@@ -40,11 +52,15 @@ function FacetBar({ facets, selected, onToggle }: FacetBarProps) {
   // measured rather than guessed. Never more than MAX_PILLS either way.
   const measure = useCallback(() => {
     const row = rowRef.current;
-    if (!row) return;
+    const shadow = measureRef.current;
+    if (!row || !shadow) return;
     const available = row.clientWidth;
     let used = 0;
     let fits = 0;
-    for (const child of Array.from(row.children) as HTMLElement[]) {
+    // Measured against a full off-screen copy rather than the visible row.
+    // Measuring the row itself only ever saw the pills already being shown, so
+    // widening the window could never bring a hidden one back.
+    for (const child of Array.from(shadow.children) as HTMLElement[]) {
       used += child.offsetWidth + 6;
       if (used > available) break;
       fits++;
@@ -71,10 +87,28 @@ function FacetBar({ facets, selected, onToggle }: FacetBarProps) {
   ];
 
   return (
-    <div className="flex justify-center px-4 md:px-10 -mt-3 mb-4">
+    <div className="relative flex justify-center px-4 md:px-10 -mt-3 mb-4">
+      {/* Off-screen copy at full width, measured instead of the visible row so
+          widening the window can bring a hidden pill back. */}
+      <div
+        ref={measureRef}
+        aria-hidden="true"
+        className="absolute -left-[9999px] top-0 flex gap-1.5 pointer-events-none"
+      >
+        {ordered.slice(0, MEASURE_LIMIT).map((f) => (
+          <span key={f.topic} className={`${pillBase} ${pillIdle}`}>
+            {f.topic}
+            <span className="opacity-60">{f.count}</span>
+          </span>
+        ))}
+      </div>
+
       <div
         ref={rowRef}
-        className="flex w-full max-w-xl gap-1.5 overflow-hidden"
+        // Wraps rather than clipping: selected pills are always rendered, and
+        // a row that cannot show them all should grow instead of hiding the
+        // control that undoes the filter.
+        className="flex w-full max-w-xl gap-1.5 flex-wrap"
         role="group"
         aria-label={t("facets.label")}
         data-cy="facet_bar"
