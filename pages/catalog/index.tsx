@@ -266,17 +266,31 @@ export default function Catalog({
   const resultCount = data?.total ?? initialTotal;
   const facets = data?.facets ?? initialFacets;
 
+  const nextTopics = useCallback(
+    (topic: string) =>
+      selectedTopics.includes(topic)
+        ? selectedTopics.filter((t) => t !== topic)
+        : [...selectedTopics, topic],
+    [selectedTopics],
+  );
+
+  // Picking a suggestion turns what was typed into a filter, so the field is
+  // emptied: leaving it would search for the same words twice.
+  const handleSelectSuggestion = useCallback(
+    (topic: string) => {
+      setBookSearchInput("");
+      applyQuery({ topics: nextTopics(topic), page: 1, q: "" }, "push");
+    },
+    [applyQuery, nextTopics],
+  );
+
+  // Toggling a pill is a different act: it narrows or widens alongside a
+  // search that was already committed, so that search stays.
   const handleToggleTopic = useCallback(
     (topic: string) => {
-      const topics = selectedTopics.includes(topic)
-        ? selectedTopics.filter((t) => t !== topic)
-        : [...selectedTopics, topic];
-      // The typed words became the filter, so the field starts clean again
-      // rather than searching for the same thing twice.
-      setBookSearchInput("");
-      applyQuery({ topics, page: 1, q: "" }, "push");
+      applyQuery({ topics: nextTopics(topic), page: 1 }, "push");
     },
-    [applyQuery, selectedTopics],
+    [applyQuery, nextTopics],
   );
 
   const handleInputChangeEvent = useCallback(
@@ -317,7 +331,7 @@ export default function Catalog({
         searchResultNumber={resultCount}
         facets={facets}
         selectedTopics={selectedTopics}
-        onToggleTopic={handleToggleTopic}
+        onToggleTopic={handleSelectSuggestion}
         onSubmitSearch={handleSubmitSearch}
         showNewBookControl={false}
         showViewToggle={false}

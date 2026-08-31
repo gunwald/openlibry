@@ -130,6 +130,7 @@ export default function Books({
         page?: number;
         topics?: string[];
         listView?: boolean;
+        copiesOf?: string | null;
       },
       mode: "push" | "replace",
     ) => {
@@ -138,15 +139,19 @@ export default function Books({
       const topics = next.topics ?? selectedTopics;
       const nextPage = next.page ?? page;
       const listView = next.listView ?? !detailView;
+      // Carried like the rest of the list state, or paging out of an expanded
+      // title silently collapsed it back into one grouped row.
+      const nextCopiesOf = next.copiesOf === undefined ? copiesOf : next.copiesOf;
       if (q) query.q = q;
       if (topics.length > 0) query.topic = topics;
       if (nextPage > 1) query.page = String(nextPage);
       if (listView) query.view = "list";
+      if (nextCopiesOf) query.copiesOf = nextCopiesOf;
       router[mode]({ pathname: router.pathname, query }, undefined, {
         shallow: true,
       });
     },
-    [router, serverSearch, selectedTopics, page, detailView],
+    [router, serverSearch, selectedTopics, page, detailView, copiesOf],
   );
 
   // The search runs on Enter, never while typing. Searching as you type looked
@@ -289,17 +294,31 @@ export default function Books({
 
   const facets = freshData?.facets ?? initialFacets;
 
+  const nextTopics = useCallback(
+    (topic: string) =>
+      selectedTopics.includes(topic)
+        ? selectedTopics.filter((t) => t !== topic)
+        : [...selectedTopics, topic],
+    [selectedTopics],
+  );
+
+  // Picking a suggestion turns what was typed into a filter, so the field is
+  // emptied: leaving it would search for the same words twice.
+  const handleSelectSuggestion = useCallback(
+    (topic: string) => {
+      setBookSearchInput("");
+      applyQuery({ topics: nextTopics(topic), page: 1, q: "" }, "push");
+    },
+    [applyQuery, nextTopics],
+  );
+
+  // Toggling a pill is a different act: it narrows or widens alongside a
+  // search that was already committed, so that search stays.
   const handleToggleTopic = useCallback(
     (topic: string) => {
-      const topics = selectedTopics.includes(topic)
-        ? selectedTopics.filter((t) => t !== topic)
-        : [...selectedTopics, topic];
-      // The typed words became the filter, so the field starts clean again
-      // rather than searching for the same thing twice.
-      setBookSearchInput("");
-      applyQuery({ topics, page: 1, q: "" }, "push");
+      applyQuery({ topics: nextTopics(topic), page: 1 }, "push");
     },
-    [applyQuery, selectedTopics],
+    [applyQuery, nextTopics],
   );
 
   const handlePageChange = useCallback(
@@ -321,7 +340,7 @@ export default function Books({
         searchResultNumber={resultCount}
         facets={facets}
         selectedTopics={selectedTopics}
-        onToggleTopic={handleToggleTopic}
+        onToggleTopic={handleSelectSuggestion}
         onSubmitSearch={handleSubmitSearch}
       />
       <FacetBar
