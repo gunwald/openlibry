@@ -113,6 +113,21 @@ export default async function handle(
       .update(`${targetPath}-${stat.mtime.getTime()}-${stat.size}`)
       .digest("hex");
 
+    // Covers keep the same URL when they are replaced (the filename is just
+    // the book id), so a long max-age would hide a newly uploaded cover until
+    // it expired. A short window is the safe trade: a page full of cards stops
+    // revalidating every cover on every load, while a replaced cover shows up
+    // within minutes. Caching for a year would need a version in the URL.
+    const maxAge = 300;
+
+    // Sent before the conditional exit below, so a 304 carries them too. A
+    // client that still holds the old no-cache answer only ever gets 304s, so
+    // returning early left it revalidating every cover on every load forever,
+    // which is the behaviour the max-age was added to stop.
+    res.setHeader("ETag", `"${etag}"`);
+    res.setHeader("Last-Modified", stat.mtime.toUTCString());
+    res.setHeader("Cache-Control", `public, max-age=${maxAge}, must-revalidate`);
+
     // Check if client has cached version (conditional request)
     const clientEtag = req.headers["if-none-match"];
     if (clientEtag === `"${etag}"`) {
@@ -127,19 +142,10 @@ export default async function handle(
       return res.status(304).end();
     }
 
-    // Covers keep the same URL when they are replaced (the filename is just
-    // the book id), so a long max-age would hide a newly uploaded cover until
-    // it expired. A short window is the safe trade: a page full of cards stops
-    // revalidating every cover on every load, while a replaced cover shows up
-    // within minutes. Caching for a year would need a version in the URL.
-    const maxAge = 300;
 
     // Set caching headers
     res.setHeader("Content-Type", "image/jpeg");
     res.setHeader("Content-Length", stat.size);
-    res.setHeader("ETag", `"${etag}"`);
-    res.setHeader("Last-Modified", stat.mtime.toUTCString());
-    res.setHeader("Cache-Control", `public, max-age=${maxAge}, must-revalidate`);
 
     // Log the serve event
     if (isDefault) {
