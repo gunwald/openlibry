@@ -77,7 +77,10 @@ function FacetBar({ facets, selected, onToggle }: FacetBarProps) {
     return () => ro.disconnect();
   }, [measure, facets, selected]);
 
-  if (facets.length === 0) return null;
+  // Not `facets.length === 0`: a filter that matches nothing returns no facets,
+  // and bailing here took the active pills away with them — leaving the filter
+  // on with no way to switch it off but the browser's back button.
+  if (facets.length === 0 && active.length === 0) return null;
 
   // Selected topics are always shown, even past the cap, so a filter can
   // always be seen and switched off.

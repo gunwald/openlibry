@@ -602,6 +602,30 @@ async function groupMatchingBooks(
     }
   }
 
+  // A title's topics are the union across all its copies, including copies the
+  // text query did not match. Tagging happens per copy, so with "Lyrik" on one
+  // volume and "Exil" on another, searching for Lyrik matched only that volume
+  // and the title was then rejected for not carrying Exil — while the facet
+  // row, counting the same way, had just offered Exil as a filter. One extra
+  // narrow read of the siblings keeps the two consistent.
+  const groupedIsbns = [...groups.keys()]
+    .filter((key) => key.startsWith("isbn:"))
+    .map((key) => key.slice("isbn:".length));
+
+  if (groupedIsbns.length > 0) {
+    const siblings = await client.book.findMany({
+      where: { isbn: { in: groupedIsbns } },
+      select: { isbn: true, topics: true },
+    });
+    for (const sibling of siblings) {
+      const isbn = sibling.isbn?.trim();
+      if (!isbn) continue;
+      const group = groups.get(`isbn:${isbn}`);
+      if (!group) continue;
+      for (const topic of parseTopicList(sibling.topics)) group.topics.add(topic);
+    }
+  }
+
   return Array.from(
     groups.values(),
     ({ representativeId, copyCount, topics }) => ({
@@ -649,11 +673,17 @@ export async function getCopySiblings(
   const isbn = book?.isbn?.trim();
   if (!isbn) return null;
 
-  const copies = await client.book.findMany({
-    where: { isbn },
-    orderBy: { id: "asc" },
-    select: { id: true, rentalStatus: true },
-  });
+  // Grouping keys on the trimmed ISBN, so " 123" and "123" are one title
+  // there. An exact match here would not find those siblings, and a copy the
+  // list had grouped away became unreachable. Matching loosely and comparing
+  // trimmed keeps both places on the same notion of "same book".
+  const copies = (
+    await client.book.findMany({
+      where: { isbn: { contains: isbn } },
+      orderBy: { id: "asc" },
+      select: { id: true, isbn: true, rentalStatus: true },
+    })
+  ).filter((c) => c.isbn?.trim() === isbn);
 
   if (copies.length < 2) return null;
 
@@ -745,9 +775,11 @@ export async function getPagedBooks(
         );
     // The ceiling binds the rows, not just the page count: without it a pager
     // that showed two pages of a fifteen-title cap still served rows 11 to 20
-    // on page two.
+    // on page two. It counts titles, so it does not apply while listing the
+    // copies of one title — a ceiling of fifteen was hiding the sixteenth
+    // volume of a book held thirty-five times.
     const capped =
-      maxTitles && maxTitles > 0 ? groups.slice(0, maxTitles) : groups;
+      !isbn && maxTitles && maxTitles > 0 ? groups.slice(0, maxTitles) : groups;
     const pageGroups = capped.slice((page - 1) * pageSize, page * pageSize);
 
     const [unordered, facets] = await Promise.all([
