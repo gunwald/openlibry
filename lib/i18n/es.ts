@@ -1183,6 +1183,7 @@ export const es: Dictionary = {
     fieldIsbn: "ISBN",
     notFound: "Libro no encontrado.",
   },
+
   // ─── Phase 11f: site footer ───────────────────────────────────────────
   footer: {
     publicCatalog: "Catálogo público",
