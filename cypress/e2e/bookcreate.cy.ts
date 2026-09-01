@@ -69,7 +69,10 @@ describe("Book creation and validation", () => {
     // Search by the book's ID for an exact match — avoids false positives
     // from other books created in earlier tests within the same suite.
     cy.get("@newBookId").then((bookId) => {
-      cy.get("[data-cy=rental_input_searchbook]").clear().type(String(bookId));
+      cy.get("[data-cy=rental_input_searchbook]")
+        .clear()
+        .type(String(bookId))
+        .type("{enter}");
       cy.wait(1000);
 
       cy.get("[data-cy=book_title]")
@@ -79,7 +82,6 @@ describe("Book creation and validation", () => {
 
       cy.get(`[data-cy=book_summary_card_${bookId}]`)
         .should("be.visible")
-        .find("[data-cy=book_card_editbutton]")
         .click();
     });
     cy.get("[data-cy=book-edit-form]").should("be.visible");
@@ -120,9 +122,9 @@ describe("Book creation and validation", () => {
     cy.url().should("include", "/book");
     cy.url().should("not.include", "/book/new");
 
-    cy.get("[data-cy=rental_input_searchbook]").type(
-      "This should not be saved",
-    );
+    cy.get("[data-cy=rental_input_searchbook]")
+      .type("This should not be saved")
+      .type("{enter}");
     cy.wait(500);
     cy.get("[data-cy=book_title]").should("not.exist");
   });

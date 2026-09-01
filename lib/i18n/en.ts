@@ -269,7 +269,6 @@ export const en: Dictionary = {
     toastCreateNewBook: "Create new book - please enter data or scan an ISBN",
     toastBookReturned: "Book returned",
     toastReturnError: "Error returning the book",
-    loadMore: "More books...",
     isbnCopies: "{{count}} copies with this ISBN",
   },
 
@@ -1128,6 +1127,28 @@ export const en: Dictionary = {
     fetchFailed: "Error loading rental data",
   },
 
+  bookCard: {
+    copies: "{count} copies",
+  },
+
+  copies: {
+    label: "Copies of this title",
+    position: "Copy {position} of {total}",
+    available: "{count} available",
+    previous: "Previous copy",
+    next: "Next copy",
+  },
+
+  facets: {
+    label: "Filter by topic",
+  },
+
+  pagination: {
+    previousPage: "Previous",
+    nextPage: "Next",
+    pageIndicator: "Page {page} of {total}",
+  },
+
   // ─── Catalog detail page ─────────────────────────────────────────────
   catalogDetailPage: {
     back: "Back to catalog",
@@ -1139,6 +1160,8 @@ export const en: Dictionary = {
     fieldYear: "Year",
     fieldPages: "Pages",
     fieldAge: "Age recommendation",
+    ageFrom: "from {min}",
+    ageUpTo: "up to {max}",
     fieldIsbn: "ISBN",
     notFound: "Book not found.",
   },

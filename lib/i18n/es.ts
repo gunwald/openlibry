@@ -275,7 +275,6 @@ export const es: Dictionary = {
       "Crear nuevo libro — introduce los datos o escanea el ISBN",
     toastBookReturned: "Libro devuelto",
     toastReturnError: "Error al devolver el libro",
-    loadMore: "Más libros...",
     isbnCopies: "{{count}} ejemplares con este ISBN",
   },
 
@@ -1152,6 +1151,28 @@ export const es: Dictionary = {
     fetchFailed: "Error al cargar los datos de préstamos",
   },
 
+  bookCard: {
+    copies: "{count} ejemplares",
+  },
+
+  copies: {
+    label: "Ejemplares de este título",
+    position: "Ejemplar {position} de {total}",
+    available: "{count} disponibles",
+    previous: "Ejemplar anterior",
+    next: "Ejemplar siguiente",
+  },
+
+  facets: {
+    label: "Filtrar por tema",
+  },
+
+  pagination: {
+    previousPage: "Anterior",
+    nextPage: "Siguiente",
+    pageIndicator: "Página {page} de {total}",
+  },
+
   // ─── Catalog detail page ─────────────────────────────────────────────
   catalogDetailPage: {
     back: "Volver al catálogo",
@@ -1163,6 +1184,8 @@ export const es: Dictionary = {
     fieldYear: "Año",
     fieldPages: "Páginas",
     fieldAge: "Edad recomendada",
+    ageFrom: "a partir de {min}",
+    ageUpTo: "hasta {max}",
     fieldIsbn: "ISBN",
     notFound: "Libro no encontrado.",
   },

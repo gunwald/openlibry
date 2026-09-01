@@ -127,16 +127,19 @@ export default async function handle(
       return res.status(304).end();
     }
 
-    // Cache for 1 year for custom covers, 1 day for default
-    // Custom covers change rarely; default might be updated
-    const maxAge = isDefault ? 86400 : 31536000;
+    // Covers keep the same URL when they are replaced (the filename is just
+    // the book id), so a long max-age would hide a newly uploaded cover until
+    // it expired. A short window is the safe trade: a page full of cards stops
+    // revalidating every cover on every load, while a replaced cover shows up
+    // within minutes. Caching for a year would need a version in the URL.
+    const maxAge = 300;
 
     // Set caching headers
     res.setHeader("Content-Type", "image/jpeg");
     res.setHeader("Content-Length", stat.size);
     res.setHeader("ETag", `"${etag}"`);
     res.setHeader("Last-Modified", stat.mtime.toUTCString());
-    res.setHeader("Cache-Control", "public, no-cache, must-revalidate");
+    res.setHeader("Cache-Control", `public, max-age=${maxAge}, must-revalidate`);
 
     // Log the serve event
     if (isDefault) {
