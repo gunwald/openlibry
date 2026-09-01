@@ -5,6 +5,7 @@ import type { Locale } from "@/lib/i18n/types";
 import { LogEvents } from "@/lib/logEvents";
 import { businessLogger, errorLogger } from "@/lib/logger";
 import { convertDateToDayString } from "@/lib/utils/dateutils";
+import { cleanIsbn } from "@/lib/utils/isbn";
 import { Prisma, PrismaClient } from "@prisma/client";
 import dayjs from "dayjs";
 import fs from "fs/promises";
@@ -805,6 +806,17 @@ export async function getPagedBooks(
   }
 }
 
+/**
+ * Store ISBNs in a single canonical form (digits + X, no hyphens/spaces) so
+ * lookups that match on equivalent ISBN variants (e.g. same-book tag reuse)
+ * find a copy regardless of how its ISBN was typed. Leaves a missing or
+ * non-ISBN value untouched.
+ */
+export function normalizeIsbn<T extends { isbn?: string | null }>(book: T): T {
+  if (typeof book.isbn !== "string" || !book.isbn.trim()) return book;
+  const cleaned = cleanIsbn(book.isbn);
+  return cleaned ? { ...book, isbn: cleaned } : book;
+}
 export async function getBook(client: PrismaClient, id: number) {
   return await client.book.findUnique({ where: { id } });
 }
@@ -812,8 +824,14 @@ export async function getBook(client: PrismaClient, id: number) {
 export async function getAllTopics(client: PrismaClient) {
   try {
     return await client.book.findMany({
+      // The identifying fields ride along so callers that must not count the
+      // same title once per physical copy can collapse them (see
+      // lib/ai-tagging/copies.ts). Callers that only read topics ignore them.
       select: {
         topics: true,
+        isbn: true,
+        title: true,
+        author: true,
       },
     });
   } catch (e) {
@@ -1097,7 +1115,7 @@ export async function addBook(client: PrismaClient, book: BookType) {
   try {
     addAudit(client, "Add book", book.title, book.id);
     return await client.book.create({
-      data: { ...book },
+      data: { ...normalizeIsbn(book) },
     });
   } catch (e) {
     if (
@@ -1132,7 +1150,7 @@ export async function updateBook(
     },
     "Updating book",
   );
-  const { id: _id, userId: _userId, ...bookData } = book; //apparently in prisma 7, the id should not be included in the data itself
+  const { id: _id, userId: _userId, ...bookData } = normalizeIsbn(book); //apparently in prisma 7, the id should not be included in the data itself
   try {
     await addAudit(
       client,
