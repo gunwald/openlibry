@@ -1189,13 +1189,13 @@ export const es: Dictionary = {
     fieldIsbn: "ISBN",
     notFound: "Libro no encontrado.",
   },
-
   // ─── Phase 11f: site footer ───────────────────────────────────────────
   footer: {
     publicCatalog: "Catálogo público",
     copyright: "Copyright",
     imprint: "Aviso legal",
     privacy: "Privacidad",
+    manage: "Gestionar",
   },
 
   // ─── ISBN lookup API error messages ──────────────────────────────────
