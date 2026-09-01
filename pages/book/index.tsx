@@ -140,7 +140,9 @@ export default function Books({
       const nextPage = next.page ?? page;
       const listView = next.listView ?? !detailView;
       // Carried like the rest of the list state, or paging out of an expanded
-      // title silently collapsed it back into one grouped row.
+      // title silently collapsed it back into one grouped row. Searching and
+      // filtering pass null explicitly: the server gives copiesOf precedence
+      // over the query, so carrying it there swallowed the new search whole.
       const nextCopiesOf = next.copiesOf === undefined ? copiesOf : next.copiesOf;
       if (q) query.q = q;
       if (topics.length > 0) query.topic = topics;
@@ -161,7 +163,7 @@ export default function Books({
   // are filtered from the facet list the page already has.
   const handleSubmitSearch = useCallback(
     (value: string) => {
-      applyQuery({ q: value, page: 1 }, "push");
+      applyQuery({ q: value, page: 1, copiesOf: null }, "push");
     },
     [applyQuery],
   );
@@ -170,7 +172,7 @@ export default function Books({
   // again", and waiting for Enter there feels broken.
   useEffect(() => {
     if (bookSearchInput === "" && serverSearch !== "") {
-      applyQuery({ q: "", page: 1 }, "replace");
+      applyQuery({ q: "", page: 1, copiesOf: null }, "replace");
     }
   }, [bookSearchInput, serverSearch, applyQuery]);
 
@@ -307,7 +309,10 @@ export default function Books({
   const handleSelectSuggestion = useCallback(
     (topic: string) => {
       setBookSearchInput("");
-      applyQuery({ topics: nextTopics(topic), page: 1, q: "" }, "push");
+      applyQuery(
+        { topics: nextTopics(topic), page: 1, q: "", copiesOf: null },
+        "push",
+      );
     },
     [applyQuery, nextTopics],
   );
@@ -316,7 +321,10 @@ export default function Books({
   // search that was already committed, so that search stays.
   const handleToggleTopic = useCallback(
     (topic: string) => {
-      applyQuery({ topics: nextTopics(topic), page: 1 }, "push");
+      applyQuery(
+        { topics: nextTopics(topic), page: 1, copiesOf: null },
+        "push",
+      );
     },
     [applyQuery, nextTopics],
   );
