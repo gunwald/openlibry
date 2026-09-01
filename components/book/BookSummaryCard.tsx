@@ -225,7 +225,8 @@ function BookSummaryCard({
                 <button
                   onClick={handleReturnClick}
                   aria-label="Buch abgeben"
-                  className="flex items-center justify-center
+                  className="pointer-events-auto
+                           flex items-center justify-center
                            w-[26px] h-[26px] rounded-md
                            bg-destructive/85 text-white backdrop-blur-sm
                            shadow-[0_2px_8px_color-mix(in_srgb,var(--destructive)_40%,transparent)]
