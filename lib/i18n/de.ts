@@ -278,7 +278,6 @@ export const de = {
       "Neues Buch erstellen - bitte Daten eingeben oder ISBN scannen",
     toastBookReturned: "Buch zurückgegeben",
     toastReturnError: "Fehler beim Zurückgeben des Buches",
-    loadMore: "Weitere Bücher...",
     isbnCopies: "{{count}} Exemplare mit dieser ISBN",
   },
 
@@ -1219,6 +1218,29 @@ export const de = {
     fetchFailed: "Fehler beim Laden der Ausleihdaten",
   },
 
+  bookCard: {
+    copies: "{count} Exemplare",
+  },
+
+  copies: {
+    label: "Exemplare dieses Titels",
+    position: "Exemplar {position} von {total}",
+    available: "{count} verfügbar",
+    previous: "Vorheriges Exemplar",
+    next: "Nächstes Exemplar",
+  },
+
+  facets: {
+    label: "Schlagwörter filtern",
+  },
+
+  // ─── Pagination (catalog and book list) ──────────────────────────────
+  pagination: {
+    previousPage: "Zurück",
+    nextPage: "Weiter",
+    pageIndicator: "Seite {page} von {total}",
+  },
+
   // ─── Catalog detail page ─────────────────────────────────────────────
   catalogDetailPage: {
     back: "Zurück zum Katalog",
@@ -1230,6 +1252,9 @@ export const de = {
     fieldYear: "Jahr",
     fieldPages: "Seiten",
     fieldAge: "Altersempfehlung",
+    // Rendered when only one bound of the age range is set.
+    ageFrom: "ab {min}",
+    ageUpTo: "bis {max}",
     fieldIsbn: "ISBN",
     notFound: "Buch nicht gefunden.",
   },

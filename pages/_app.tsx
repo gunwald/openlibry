@@ -4,6 +4,7 @@ import type { AppProps } from "next/app";
 import Head from "next/head";
 import { Toaster } from "sonner";
 
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { t } from "@/lib/i18n";
 import { setupDayjs } from "@/lib/i18n/dayjs";
 
@@ -15,12 +16,14 @@ setupDayjs();
 export default function App({ Component, pageProps }: AppProps) {
   return (
     <SessionProvider session={pageProps.session}>
-      <Head>
-        <title>{t("app.title")}</title>
-        <meta property="og:title" content="OpenLibry" key="OpenLibry" />
-      </Head>
-      <Component {...pageProps} />
-      <Toaster position="bottom-right" richColors />
+      <TooltipProvider>
+        <Head>
+          <title>{t("app.title")}</title>
+          <meta property="og:title" content="OpenLibry" key="OpenLibry" />
+        </Head>
+        <Component {...pageProps} />
+        <Toaster position="bottom-right" richColors />
+      </TooltipProvider>
     </SessionProvider>
   );
 }

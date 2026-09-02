@@ -212,7 +212,8 @@ describe("Book fields — fill all and verify persistence", () => {
     cy.get("[data-cy=index_book_button]").click();
     cy.get("[data-cy=rental_input_searchbook]")
       .should("be.visible")
-      .type(String(bookId));
+      .type(String(bookId))
+      .type("{enter}");
 
     cy.get(`[data-cy=book_summary_card_${bookId}]`)
       .should("be.visible")
@@ -303,7 +304,8 @@ allStatuses.forEach((value) => {
       cy.get("[data-cy=index_book_button]").click();
       cy.get("[data-cy=rental_input_searchbook]")
         .should("be.visible")
-        .type(String(bookId));
+        .type(String(bookId))
+        .type("{enter}");
       cy.get(`[data-cy=book_summary_card_${bookId}]`)
         .should("be.visible")
         .find("[role=status]")
