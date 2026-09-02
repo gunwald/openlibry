@@ -15,6 +15,14 @@
 #   ./scripts/backup.sh                 # writes into ./backups
 #   ./scripts/backup.sh /mnt/usb/olib   # writes into a custom directory
 #   BACKUP_DIR=/mnt/usb ./scripts/backup.sh
+#   ./scripts/backup.sh --db-only       # deliberately skip the cover images
+#
+# A "full" backup that quietly contains no covers is worse than no backup, so a
+# missing image directory is an error rather than a warning. Pass --db-only to
+# say you meant it. Note that a container deployment may set
+# COVERIMAGE_FILESTORAGE_PATH in docker-compose.yml, which overrides .env — read
+# the path from the running container if the two disagree:
+#   docker inspect <container> --format '{{range .Config.Env}}{{println .}}{{end}}' | grep COVERIMAGE
 #
 # Restore: see scripts/restore.sh (or the manifest inside the tarball).
 
@@ -57,8 +65,19 @@ case "$IMG_DIR" in
   *)  IMG_DIR="$ROOT/${IMG_DIR#./}" ;;
 esac
 
+# ── Arguments ───────────────────────────────────────────────────────────────
+DB_ONLY=0
+POSITIONAL=""
+for arg in "$@"; do
+  case "$arg" in
+    --db-only) DB_ONLY=1 ;;
+    -*) echo "ERROR: unknown option $arg" >&2; exit 2 ;;
+    *) POSITIONAL="$arg" ;;
+  esac
+done
+
 # ── Output location ─────────────────────────────────────────────────────────
-BACKUP_DIR="${1:-${BACKUP_DIR:-$ROOT/backups}}"
+BACKUP_DIR="${POSITIONAL:-${BACKUP_DIR:-$ROOT/backups}}"
 STAMP="$(date +%Y%m%d-%H%M%S)"
 NAME="openlibry-backup-$STAMP"
 STAGE="$(mktemp -d)"
@@ -110,8 +129,24 @@ if [ -d "$IMG_DIR" ]; then
   cp -a "$IMG_DIR/." "$STAGE/coverimages/" 2>/dev/null || true
   IMG_COUNT="$(find "$STAGE/coverimages" -type f | wc -l | tr -d ' ')"
   echo "  ✓ cover images ($IMG_COUNT files)"
+  if [ "$IMG_COUNT" -eq 0 ]; then
+    echo "    (the directory is there but holds no files)"
+  fi
+elif [ "$DB_ONLY" -eq 1 ]; then
+  echo "  - cover images skipped (--db-only)"
 else
-  echo "  ! image directory $IMG_DIR not found — backing up database only"
+  # Stopping here on purpose. This used to print a warning and carry on to
+  # "Done", handing back a database-only archive that looked like a full
+  # backup — and the path is easy to get wrong: a compose file that sets
+  # COVERIMAGE_FILESTORAGE_PATH overrides the .env this script reads, so the
+  # covers can be somewhere else entirely while .env still names an empty one.
+  echo >&2
+  echo "ERROR: cover image directory not found: $IMG_DIR" >&2
+  echo "  Read from COVERIMAGE_FILESTORAGE_PATH in .env (default ./public/coverimages)." >&2
+  echo "  If this instance runs in Docker, check the environment block of your" >&2
+  echo "  compose file — a value set there overrides .env and is what the app uses." >&2
+  echo "  Re-run with --db-only to back up the database alone on purpose." >&2
+  exit 1
 fi
 
 # ── 3. Manifest ─────────────────────────────────────────────────────────────
