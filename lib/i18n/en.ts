@@ -1172,6 +1172,7 @@ export const en: Dictionary = {
     copyright: "Copyright",
     imprint: "Legal notice",
     privacy: "Privacy",
+    manage: "Manage",
   },
 
   // ─── ISBN lookup API error messages ──────────────────────────────────
