@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { t } from "@/lib/i18n";
 import { useEffect, useState } from "react";
 
@@ -22,14 +23,16 @@ export default function Footer({ publicView = false }: FooterProps) {
       <div className="flex flex-col md:flex-row items-center justify-center gap-4 md:gap-6 text-sm">
         {publicView ? (
           // Public pages link to the internal area; internal pages link to
-          // the public catalog. Each side points at the other.
-          <a href="/manage" className="text-inherit hover:underline">
+          // the public catalog. Each side points at the other. Absolute hrefs
+          // on both: a relative "./catalog" resolves against the current path,
+          // so from /book/42 it reached /book/catalog.
+          <Link href="/manage" className="text-inherit hover:underline">
             {t("footer.manage")}
-          </a>
+          </Link>
         ) : (
-          <a href="./catalog" className="text-inherit hover:underline">
+          <Link href="/catalog" className="text-inherit hover:underline">
             {t("footer.publicCatalog")}
-          </a>
+          </Link>
         )}
         <a href="https://openlibry.de" className="text-inherit hover:underline">
           {t("footer.copyright")}
