@@ -294,6 +294,17 @@ function BookSummaryCard({
             {book.author}
           </p>
 
+          {/* Location */}
+          {book.location && (
+            <span
+              className="self-start px-1.5 py-0.5 rounded bg-black/40 backdrop-blur-sm
+                         text-[0.6rem] font-medium text-white/90 truncate max-w-full"
+              title={book.location}
+            >
+              {book.location}
+            </span>
+          )}
+
           {/* Copies, stated rather than implied. A catalogue answers "how many
               do we have" in words: a tilt behind the card is ambiguous, and a
               number in the corner loses to the chrome around it. The sheets
