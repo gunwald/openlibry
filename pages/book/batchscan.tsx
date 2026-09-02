@@ -62,9 +62,13 @@ export default function BatchScan() {
   // ── Scan handler ──────────────────────────────────────────────────────────
 
   const handleScan = useCallback(async () => {
-    const cleanedIsbn = isbnInput.trim().replace(/\D/g, "");
+    // Separators go, the check digit stays. An ISBN-10 may end in X, and
+    // stripping every non-digit turned such a number into a nine-digit one
+    // that matches no book, so the lookup quietly returned nothing or, worse,
+    // something else.
+    const cleanedIsbn = isbnInput.trim().replace(/[\s-]/g, "").toUpperCase();
 
-    if (!cleanedIsbn) {
+    if (!/^\d+X?$/.test(cleanedIsbn)) {
       toast.warning("Bitte eine gültige ISBN eingeben");
       return;
     }
