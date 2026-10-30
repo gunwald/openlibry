@@ -401,7 +401,7 @@ export default function BookEditForm({
       <SectionDivider>{t("bookEditForm.sectionIsbn")}</SectionDivider>
 
       <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto] gap-3 items-end mb-6">
-        <div className="min-w-0">
+        <div className="relative min-w-0">
           <BookField
             fieldType="isbn"
             editable={editable}
@@ -409,6 +409,16 @@ export default function BookEditForm({
             book={book}
             autoFocus={isNewBook}
           />
+          {editable && (
+            <div className="absolute right-2.5 bottom-2">
+              <CameraScanner
+                onDetected={handleCameraDetected}
+                accept={isIsbnLike}
+                stopAfterScan
+                overlay
+              />
+            </div>
+          )}
         </div>
 
         <ActionButton
@@ -441,16 +451,6 @@ export default function BookEditForm({
           </ActionButton>
         )}
       </div>
-
-      {editable && (
-        <div className="mb-6">
-          <CameraScanner
-            onDetected={handleCameraDetected}
-            accept={isIsbnLike}
-            stopAfterScan
-          />
-        </div>
-      )}
 
       {/* ── Book Details ───────────────────────────────────────────────── */}
       <SectionDivider>{t("bookEditForm.sectionBookData")}</SectionDivider>

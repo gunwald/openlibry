@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { t } from "@/lib/i18n";
 import { BrowserMultiFormatReader } from "@zxing/browser";
 import type { IScannerControls } from "@zxing/browser";
-import { Camera, CameraOff } from "lucide-react";
+import { Camera, CameraOff, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 interface CameraScannerProps {
@@ -12,6 +12,8 @@ interface CameraScannerProps {
   accept?: (text: string) => boolean;
   /** Turn the camera off after the first accepted code. */
   stopAfterScan?: boolean;
+  /** Show only a camera icon, to sit inside an input, and scan full screen. */
+  overlay?: boolean;
 }
 
 // Ignore a re-detection of the same code while it's still sitting in frame —
@@ -29,6 +31,7 @@ export default function CameraScanner({
   onDetected,
   accept,
   stopAfterScan = false,
+  overlay = false,
 }: CameraScannerProps) {
   const [active, setActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -92,6 +95,59 @@ export default function CameraScanner({
       controlsRef.current = null;
     };
   }, [active, onDetected, accept, stopAfterScan]);
+
+  if (overlay) {
+    return (
+      <>
+        <button
+          type="button"
+          onClick={() => setActive(true)}
+          aria-label={t("scan.cameraStart")}
+          data-cy="scan_camera_toggle"
+          className="flex text-muted-foreground hover:text-primary transition-colors"
+        >
+          <Camera className="size-5" />
+        </button>
+
+        {active && (
+          <div
+            className="fixed inset-0 z-50 flex flex-col bg-black"
+            data-cy="scan_camera_preview"
+          >
+            <div className="flex items-center justify-between px-4 py-3">
+              <span className="text-sm font-medium text-white">
+                {t("scan.cameraLabel")}
+              </span>
+              <button
+                type="button"
+                onClick={() => setActive(false)}
+                aria-label={t("scan.cameraStop")}
+                data-cy="scan_camera_close"
+                className="p-2 text-white"
+              >
+                <X className="size-5" />
+              </button>
+            </div>
+            {error && (
+              <p
+                className="px-4 py-2 text-sm text-white"
+                data-cy="scan_camera_error"
+              >
+                {error}
+              </p>
+            )}
+            {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+            <video
+              ref={videoRef}
+              muted
+              playsInline
+              className="min-h-0 flex-1 object-cover"
+            />
+          </div>
+        )}
+      </>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-2">

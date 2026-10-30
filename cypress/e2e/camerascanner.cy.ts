@@ -7,6 +7,19 @@
 // on a school LAN, where the browser exposes no camera at all, so this is the
 // path most installations will actually take.
 
+// A transformed ancestor would trap the fixed overlay inside the input.
+function expectFullScreen() {
+  cy.window().then((win) => {
+    cy.get("[data-cy=scan_camera_preview]").then(($el) => {
+      const rect = $el[0].getBoundingClientRect();
+      expect(rect.top).to.equal(0);
+      expect(rect.left).to.equal(0);
+      expect(rect.width).to.equal(win.document.documentElement.clientWidth);
+      expect(rect.height).to.equal(win.document.documentElement.clientHeight);
+    });
+  });
+}
+
 describe("Camera barcode scanner", () => {
   before(() => {
     cy.resetAndSeed();
@@ -22,7 +35,7 @@ describe("Camera barcode scanner", () => {
     });
   });
 
-  it("should offer the camera below the batch scan ISBN input", () => {
+  it("should offer the camera inside the batch scan ISBN input", () => {
     cy.visit("/book/batchscan");
     cy.get("[data-cy=scan_camera_toggle]").should("be.visible");
   });
@@ -53,7 +66,7 @@ describe("Camera barcode scanner", () => {
       .and("contain", "HTTPS");
   });
 
-  it("should turn the camera off again", () => {
+  it("should scan full screen and close again", () => {
     cy.visit("/book/batchscan", {
       onBeforeLoad(win) {
         Object.defineProperty(win, "isSecureContext", {
@@ -65,13 +78,19 @@ describe("Camera barcode scanner", () => {
 
     cy.get("[data-cy=scan_camera_toggle]").click();
     cy.get("[data-cy=scan_camera_preview]").should("be.visible");
-    cy.get("[data-cy=scan_camera_toggle]").click();
+    expectFullScreen();
+    cy.get("[data-cy=scan_camera_close]").click();
     cy.get("[data-cy=scan_camera_preview]").should("not.exist");
     cy.get("[data-cy=batch-scan-isbn-input]").should("be.visible");
   });
 
-  it("should offer the camera below the book edit ISBN field", () => {
+  it("should scan full screen from the book edit ISBN field", () => {
     cy.visit("/book/new");
-    cy.get("[data-cy=scan_camera_toggle]").should("exist");
+    cy.get("[data-cy=book-isbn-field]").should("be.visible");
+    cy.get("[data-cy=scan_camera_toggle]").click();
+    cy.get("[data-cy=scan_camera_preview]").should("be.visible");
+    expectFullScreen();
+    cy.get("[data-cy=scan_camera_close]").click();
+    cy.get("[data-cy=scan_camera_preview]").should("not.exist");
   });
 });

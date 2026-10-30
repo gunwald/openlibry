@@ -493,8 +493,16 @@ export default function BatchScan() {
                       autoFocus
                       placeholder="ISBN hier scannen oder eingeben…"
                       data-cy="batch-scan-isbn-input"
-                      className="pl-10 h-11"
+                      className="pl-10 pr-10 h-11"
                     />
+                    <div className="absolute right-2.5 bottom-3">
+                      <CameraScanner
+                        onDetected={handleCameraDetected}
+                        accept={isIsbnLike}
+                        stopAfterScan
+                        overlay
+                      />
+                    </div>
                   </div>
                   <p className="text-xs text-muted-foreground mt-1.5 ml-1">
                     Gleiche ISBN mehrfach scannen erhöht die Anzahl
@@ -508,13 +516,6 @@ export default function BatchScan() {
                   <PlusCircle />
                   Hinzufügen
                 </Button>
-              </div>
-              <div className="mt-3">
-                <CameraScanner
-                  onDetected={handleCameraDetected}
-                  accept={isIsbnLike}
-                  stopAfterScan
-                />
               </div>
             </CardContent>
           </Card>
