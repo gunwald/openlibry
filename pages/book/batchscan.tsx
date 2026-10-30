@@ -39,7 +39,6 @@ import {
   useState,
 } from "react";
 import { toast } from "sonner";
-import { t } from "@/lib/i18n";
 import { MAX_BOOKS_PER_REQUEST } from "@/lib/ai-tagging/types";
 
 // The scanner pulls in the whole zxing decoder, a 469 KB chunk. Imported
