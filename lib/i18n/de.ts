@@ -1409,6 +1409,12 @@ export const de = {
     cameraError:
       "Kamera konnte nicht gestartet werden. Bitte Berechtigung prüfen.",
     cameraInsecure: "Die Kamera ist nur über eine HTTPS-Verbindung verfügbar.",
+    cameraPermissionDenied:
+      "Kamerazugriff verweigert. Bitte Berechtigung erteilen.",
+    cameraNotFound: "Keine Kamera gefunden.",
+    cameraSwitch: "Kamera wechseln",
+    cameraHint: "Barcode in den Rahmen halten",
+    cameraRetry: "Erneut versuchen",
     logEmpty: "Noch keine Scans in dieser Sitzung",
     logPendingRent: "Ausleihe von „{title}“ an {name} wird verarbeitet …",
     logPendingReturn: "Rückgabe von „{title}“ wird verarbeitet …",
