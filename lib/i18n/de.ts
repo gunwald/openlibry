@@ -285,6 +285,9 @@ export const de = {
     toastBookReturned: "Buch zurückgegeben, super!",
     toastReturnError: "Fehler beim Zurückgeben des Buches",
   },
+  batchScan: {
+    toastIsbnRequired: "Bitte eine gültige ISBN eingeben",
+  },
   bookSelect: {
     renewalNone: "Nicht verlängert",
     renewalCountFormat: "{n}x verlängert",
@@ -1366,6 +1369,7 @@ export const de = {
     cameraStop: "Kamera aus",
     cameraError:
       "Kamera konnte nicht gestartet werden. Bitte Berechtigung prüfen.",
+    cameraInsecure: "Die Kamera ist nur über eine HTTPS-Verbindung verfügbar.",
     logEmpty: "Noch keine Scans in dieser Sitzung",
     logPendingRent: "Ausleihe von „{title}“ an {name} wird verarbeitet …",
     logPendingReturn: "Rückgabe von „{title}“ wird verarbeitet …",

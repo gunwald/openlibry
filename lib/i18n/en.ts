@@ -276,6 +276,9 @@ export const en: Dictionary = {
     toastBookReturned: "Book returned, great!",
     toastReturnError: "Error returning the book",
   },
+  batchScan: {
+    toastIsbnRequired: "Please enter a valid ISBN",
+  },
   bookSelect: {
     renewalNone: "Not renewed",
     renewalCountFormat: "{n}× renewed",
@@ -1264,6 +1267,7 @@ export const en: Dictionary = {
     cameraStart: "Camera on",
     cameraStop: "Camera off",
     cameraError: "Couldn't start the camera. Please check permissions.",
+    cameraInsecure: "The camera is only available over an HTTPS connection.",
     logEmpty: "No scans yet this session",
     logPendingRent: 'Lending "{title}" to {name} …',
     logPendingReturn: 'Returning "{title}" …',

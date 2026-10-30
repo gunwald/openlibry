@@ -28,6 +28,13 @@ Die Stapelerfassung erreichen Sie über die Bücherverwaltung:
 !!! tip "Tipp"
     Der Barcode-Scanner sollte so konfiguriert sein, dass er nach dem Scan automatisch Enter sendet. Dies beschleunigt den Erfassungsprozess erheblich.
 
+#### Barcode mit der Kamera erfassen
+
+Wenn kein Handscanner zur Verfügung steht, können Sie den Barcode auch mit der Kamera des Geräts aufnehmen. Die Schaltfläche „Kamera an“ unter dem ISBN-Eingabefeld schaltet die Kamera ein. Halten Sie den Barcode davor: Sobald eine ISBN erkannt ist, wird das Buch hinzugefügt und die Kamera schaltet sich wieder aus, damit dasselbe Buch nicht doppelt gezählt wird. Für das nächste Buch schalten Sie sie erneut ein. Andere Barcodes, etwa Bibliotheksetiketten, werden ignoriert. Dieselbe Schaltfläche finden Sie unter dem ISBN-Feld der Buchbearbeitung, dort wird die erkannte ISBN in das Feld übernommen.
+
+!!! warning "HTTPS erforderlich"
+    Browser geben die Kamera nur in einem sicheren Kontext frei, also über HTTPS oder beim Aufruf über localhost. Wenn Sie OpenLibry im Schulnetz über eine einfache HTTP-Adresse erreichen, zum Beispiel über `http://192.168.1.50:3000`, bleibt die Kamera gesperrt und der Scanner weist darauf hin, dass eine HTTPS-Verbindung nötig ist. Die Eingabe von Hand und der angeschlossene Handscanner arbeiten unabhängig davon weiter. Wie Sie HTTPS einrichten, steht unter [Installation mit nginx und SSL](../installation/nginx-ssl.md).
+
 ### Schritt 2: Buchdaten abrufen
 
 Nachdem Sie alle ISBNs gescannt haben:
@@ -79,6 +86,10 @@ Die Suche erfolgt automatisch nacheinander, bis Daten gefunden werden. Die Reihe
 - Überprüfen Sie, ob die ISBN korrekt gescannt wurde
 - Prüfen Sie die ISBN auf Tippfehler
 - Manche älteren Bücher haben nur 10-stellige ISBNs - diese werden automatisch umgewandelt
+
+### Kamera startet nicht
+
+Prüfen Sie zuerst die Adresse in der Browserzeile. Ohne HTTPS gibt der Browser keine Kamera frei, siehe den Hinweis in Schritt 1. Besteht bereits eine HTTPS-Verbindung und die Kamera startet trotzdem nicht, wurde meist die Kameraberechtigung für diese Seite abgelehnt. Sie lässt sich in den Website-Einstellungen des Browsers wieder erteilen.
 
 ### Keine Buchdaten gefunden
 
