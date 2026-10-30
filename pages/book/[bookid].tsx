@@ -6,6 +6,7 @@ import { CopySiblings, getBook, getCopySiblings } from "@/entities/book";
 import { BookType } from "@/entities/BookType";
 import { prisma } from "@/entities/db";
 import { useBookEditor } from "@/hooks/useBookEditor";
+import { isAiTaggingEnabled } from "@/lib/ai-tagging/config";
 import { replaceBookDateString } from "@/lib/utils/dateutils";
 import {
   getDeleteSafetySeconds,
@@ -19,6 +20,7 @@ interface BookDetailProps {
   topics: string[];
   deleteSafetySeconds: number;
   copies: CopySiblings | null;
+  aiTaggingEnabled: boolean;
 }
 
 export default function BookDetail({
@@ -26,6 +28,7 @@ export default function BookDetail({
   topics,
   deleteSafetySeconds,
   copies,
+  aiTaggingEnabled,
 }: BookDetailProps) {
   const router = useRouter();
 
@@ -64,6 +67,7 @@ export default function BookDetail({
         topics={topics}
         antolinResults={editor.antolinResults}
         isSaving={editor.isSaving}
+        aiTaggingEnabled={aiTaggingEnabled}
       />
     </Layout>
   );
@@ -88,5 +92,13 @@ export async function getServerSideProps(context: GetServerSidePropsContext) {
   const topics = await getUniqueTopics(prisma);
   const copies = await getCopySiblings(prisma, book.id);
 
-  return { props: { book, topics, deleteSafetySeconds, copies } };
+  return {
+    props: {
+      book,
+      topics,
+      deleteSafetySeconds,
+      copies,
+      aiTaggingEnabled: isAiTaggingEnabled(),
+    },
+  };
 }
