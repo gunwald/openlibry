@@ -7,6 +7,20 @@
 // on a school LAN, where the browser exposes no camera at all, so this is the
 // path most installations will actually take.
 
+// Fakes the camera API so the failure and switching paths can run at all.
+function stubCamera(win: Cypress.AUTWindow, getUserMedia: any) {
+  Object.defineProperty(win.navigator, "mediaDevices", {
+    configurable: true,
+    value: {
+      getUserMedia,
+      enumerateDevices: async () => [
+        { kind: "videoinput", deviceId: "cam-a", label: "Back" },
+        { kind: "videoinput", deviceId: "cam-b", label: "Front" },
+      ],
+    },
+  });
+}
+
 // A transformed ancestor would trap the fixed overlay inside the input.
 function expectFullScreen() {
   cy.window().then((win) => {
@@ -64,6 +78,7 @@ describe("Camera barcode scanner", () => {
     cy.get("[data-cy=scan_camera_error]")
       .should("be.visible")
       .and("contain", "HTTPS");
+    cy.get("[data-cy=scan_camera_retry]").should("not.exist");
   });
 
   it("should scan full screen and close again", () => {
@@ -82,6 +97,62 @@ describe("Camera barcode scanner", () => {
     cy.get("[data-cy=scan_camera_close]").click();
     cy.get("[data-cy=scan_camera_preview]").should("not.exist");
     cy.get("[data-cy=batch-scan-isbn-input]").should("be.visible");
+  });
+
+  it("should show the scan frame and hint while the camera runs", () => {
+    cy.visit("/book/batchscan", {
+      onBeforeLoad(win) {
+        stubCamera(win, () => new Promise(() => {}));
+      },
+    });
+
+    cy.get("[data-cy=scan_camera_toggle]").click();
+    cy.get("[data-cy=scan_camera_frame]").should("exist");
+    cy.contains("Barcode in den Rahmen halten").should("exist");
+  });
+
+  it("should name the cause of a failure and retry", () => {
+    const failures = ["NotAllowedError", "NotFoundError"];
+    cy.visit("/book/batchscan", {
+      onBeforeLoad(win) {
+        stubCamera(win, () =>
+          Promise.reject(new win.DOMException("", failures.shift())),
+        );
+      },
+    });
+
+    cy.get("[data-cy=scan_camera_toggle]").click();
+    cy.get("[data-cy=scan_camera_error]").should("contain", "verweigert");
+    cy.get("[data-cy=scan_camera_retry]").click();
+    cy.get("[data-cy=scan_camera_error]").should(
+      "contain",
+      "Keine Kamera gefunden",
+    );
+  });
+
+  it("should switch between cameras", () => {
+    cy.visit("/book/batchscan", {
+      onBeforeLoad(win) {
+        const canvas = win.document.createElement("canvas");
+        win.setInterval(
+          () => canvas.getContext("2d")?.fillRect(0, 0, 10, 10),
+          50,
+        );
+        stubCamera(
+          win,
+          cy
+            .stub()
+            .as("getUserMedia")
+            .callsFake(async () => canvas.captureStream(10)),
+        );
+      },
+    });
+
+    cy.get("[data-cy=scan_camera_toggle]").click();
+    cy.get("[data-cy=scan_camera_switch]").click();
+    cy.get("@getUserMedia").should((stub: any) => {
+      expect(stub.lastCall.args[0].video.deviceId.exact).to.equal("cam-a");
+    });
   });
 
   it("should scan full screen from the book edit ISBN field", () => {
