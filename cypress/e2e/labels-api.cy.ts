@@ -137,11 +137,17 @@ describe("Label API", () => {
         cy.request({
           method: "POST",
           url: `${API}/generate`,
-          body: { sheetConfigId: "zweckform-3474", templateId: "default", books },
+          body: {
+            sheetConfigId: "zweckform-3474",
+            templateId: "default",
+            books,
+          },
           encoding: "binary",
         }).then((response) => {
           expect(response.status).to.eq(200);
-          expect(response.headers["content-type"]).to.include("application/pdf");
+          expect(response.headers["content-type"]).to.include(
+            "application/pdf",
+          );
           expect(response.body.substring(0, 5)).to.eq("%PDF-");
         });
       });
@@ -180,8 +186,13 @@ describe("Label API", () => {
     });
 
     it("should generate a PDF with bookFilter: IDs", () => {
-      cy.request("GET", "http://localhost:3000/api/book").then((booksResponse) => {
-        const ids = booksResponse.body.slice(0, 2).map((b: any) => b.id);
+      // /api/book always answers with a page now; the unpaged array moved to
+      // /api/book/export.
+      cy.request(
+        "GET",
+        "http://localhost:3000/api/book?page=1&pageSize=2",
+      ).then((booksResponse) => {
+        const ids = booksResponse.body.books.map((b: any) => b.id);
         expect(ids).to.have.length.greaterThan(0);
 
         cy.request({
@@ -257,9 +268,21 @@ describe("Label API", () => {
               padding: 2,
               fields: {
                 spine: { content: "id", fontSizeMax: 14, align: "center" },
-                horizontal1: { content: "title", fontSizeMax: 12, align: "left" },
-                horizontal2: { content: "topics", fontSizeMax: 9, align: "left" },
-                horizontal3: { content: "school", fontSizeMax: 8, align: "left" },
+                horizontal1: {
+                  content: "title",
+                  fontSizeMax: 12,
+                  align: "left",
+                },
+                horizontal2: {
+                  content: "topics",
+                  fontSizeMax: 9,
+                  align: "left",
+                },
+                horizontal3: {
+                  content: "school",
+                  fontSizeMax: 8,
+                  align: "left",
+                },
               },
             },
             books: books.slice(0, 1),
@@ -267,7 +290,9 @@ describe("Label API", () => {
           encoding: "binary",
         }).then((response) => {
           expect(response.status).to.eq(200);
-          expect(response.headers["content-type"]).to.include("application/pdf");
+          expect(response.headers["content-type"]).to.include(
+            "application/pdf",
+          );
           expect(response.headers["content-disposition"]).to.include("inline");
         });
       });

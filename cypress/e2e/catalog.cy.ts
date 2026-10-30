@@ -47,7 +47,10 @@ describe("Public book catalog", () => {
     cy.get("[data-cy^=book_summary_card_]")
       .its("length")
       .then((totalCount) => {
-        cy.get("[data-cy=rental_input_searchbook]").click().type("editierbar");
+        // The search runs on Enter, not while typing.
+        cy.get("[data-cy=rental_input_searchbook]")
+          .click()
+          .type("editierbar{enter}");
         cy.get("[data-cy^=book_summary_card_]").should(
           "have.length.lessThan",
           totalCount,
@@ -59,7 +62,11 @@ describe("Public book catalog", () => {
     cy.get("[data-cy^=book_summary_card_]")
       .its("length")
       .then((totalCount) => {
-        cy.get("[data-cy=rental_input_searchbook]").click().type("a").clear();
+        // Emptying the field restores everything without needing Enter.
+        cy.get("[data-cy=rental_input_searchbook]")
+          .click()
+          .type("a{enter}")
+          .clear();
         cy.get("[data-cy^=book_summary_card_]").should(
           "have.length",
           totalCount,

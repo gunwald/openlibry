@@ -9,8 +9,9 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { TopicFacet } from "@/entities/book";
 import { t } from "@/lib/i18n";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 interface BookSearchBarProps {
   handleInputChange: React.ChangeEventHandler<
@@ -23,7 +24,16 @@ interface BookSearchBarProps {
   searchResultNumber: number;
   showNewBookControl?: boolean;
   showViewToggle?: boolean;
+  /** Topics offered as suggestions while typing. Omit to disable the menu. */
+  facets?: TopicFacet[];
+  selectedTopics?: string[];
+  onToggleTopic?: (topic: string) => void;
+  /** Runs the search. Called on Enter, not while typing. */
+  onSubmitSearch?: (value: string) => void;
 }
+
+/** Topic suggestions shown at once; more than this is a list, not a hint. */
+const MAX_SUGGESTIONS = 6;
 
 export default function BookSearchBar({
   handleInputChange,
@@ -34,9 +44,43 @@ export default function BookSearchBar({
   searchResultNumber,
   showNewBookControl = true,
   showViewToggle = true,
+  facets = [],
+  selectedTopics = [],
+  onToggleTopic,
+  onSubmitSearch,
 }: BookSearchBarProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
   const router = useRouter();
+
+  // Topics matching what has been typed. This is why there is no second
+  // search box: the field already in front of the user does both jobs.
+  const suggestions = useMemo(() => {
+    const needle = bookSearchInput.trim().toLowerCase();
+    if (!needle || !onToggleTopic) return [];
+    return facets
+      .filter(
+        (f) =>
+          !selectedTopics.includes(f.topic) &&
+          f.topic.toLowerCase().includes(needle),
+      )
+      .slice(0, MAX_SUGGESTIONS);
+  }, [bookSearchInput, facets, selectedTopics, onToggleTopic]);
+
+  // Close when the focus or the pointer leaves the search area.
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (!formRef.current?.contains(e.target as Node)) setMenuOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [menuOpen]);
+
+  useEffect(() => {
+    setMenuOpen(suggestions.length > 0);
+  }, [suggestions.length, bookSearchInput]);
   useEffect(() => {
     inputRef.current?.focus();
 
@@ -53,7 +97,15 @@ export default function BookSearchBar({
         <div className="flex w-full max-w-xl items-center gap-2">
           {/* ── Search input ────────────────────────────────────── */}
           <form
-            onSubmit={(e) => e.preventDefault()}
+            ref={formRef}
+            onSubmit={(e) => {
+              e.preventDefault();
+              setMenuOpen(false);
+              onSubmitSearch?.(bookSearchInput);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") setMenuOpen(false);
+            }}
             className="relative flex flex-1 items-center"
           >
             <Search className="absolute left-3 h-4 w-4 text-muted-foreground pointer-events-none" />
@@ -83,6 +135,44 @@ export default function BookSearchBar({
               >
                 {searchResultNumber}
               </Badge>
+            )}
+
+            {/* Topic suggestions for what has been typed. Picking one turns
+                the text into a filter and empties the field, so the two never
+                fight over the same words. */}
+            {menuOpen && suggestions.length > 0 && (
+              <div
+                className="absolute top-11 left-0 right-0 z-50 py-1
+                           rounded-lg border border-border bg-card shadow-lg"
+                role="listbox"
+                data-cy="search_suggestions"
+              >
+                <div className="px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground">
+                  {t("facets.label")}
+                </div>
+                {suggestions.map((f) => (
+                  <button
+                    key={f.topic}
+                    type="button"
+                    role="option"
+                    aria-selected={false}
+                    data-cy="search_suggestion"
+                    onClick={() => {
+                      onToggleTopic?.(f.topic);
+                      setMenuOpen(false);
+                    }}
+                    className="flex w-full items-center justify-between gap-3
+                               px-3 py-1.5 text-sm text-left
+                               hover:bg-primary/10 focus-visible:bg-primary/10
+                               focus-visible:outline-none"
+                  >
+                    <span className="truncate">{f.topic}</span>
+                    <span className="shrink-0 text-xs text-muted-foreground">
+                      {f.count}
+                    </span>
+                  </button>
+                ))}
+              </div>
             )}
           </form>
 
