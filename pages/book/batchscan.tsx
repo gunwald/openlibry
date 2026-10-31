@@ -75,9 +75,13 @@ export default function BatchScan() {
 
   const processIsbn = useCallback(
     async (rawIsbn: string) => {
-      const cleanedIsbn = rawIsbn.trim().replace(/\D/g, "");
+      // Separators go, the check digit stays. An ISBN-10 may end in X, and
+      // stripping every non-digit turned such a number into a nine-digit one
+      // that matches no book, so the lookup quietly returned nothing or, worse,
+      // something else.
+      const cleanedIsbn = rawIsbn.trim().replace(/[\s-]/g, "").toUpperCase();
 
-      if (!cleanedIsbn) return;
+      if (!/^\d+X?$/.test(cleanedIsbn)) return;
 
       const existingEntry = entries.find((e) => e.isbn === cleanedIsbn);
 
@@ -173,7 +177,7 @@ export default function BatchScan() {
   const handleScan = useCallback(async () => {
     // Warn (and keep the input) when nothing usable was entered, instead of
     // silently clearing — processIsbn strips non-digits and returns quietly.
-    if (!isbnInput.trim().replace(/\D/g, "")) {
+    if (!/^\d+X?$/.test(isbnInput.trim().replace(/[\s-]/g, "").toUpperCase())) {
       toast.warning(t("batchScan.toastIsbnRequired"));
       return;
     }
