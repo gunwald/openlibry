@@ -1,7 +1,7 @@
 import Layout from "@/components/layout/Layout";
 import { GetServerSideProps, GetServerSidePropsContext } from "next";
 import { useRouter } from "next/router";
-import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import useSWR from "swr";
 
 import BookSearchBar from "@/components/book/BookSearchBar";
@@ -119,8 +119,15 @@ export default function Books({
   // list view names itself and an untouched URL stays clean.
   const detailView = readQueryValue(router.query.view) !== "list";
 
+  // Searches this page started itself. When one lands the field stays as it
+  // is, because the next search may already be half typed. Anything else that
+  // changes the address, such as the back button, shows its term in the field.
+  const ownSearches = useRef(new Set<string>());
+
   useEffect(() => {
-    setBookSearchInput(serverSearch);
+    if (!ownSearches.current.delete(serverSearch)) {
+      setBookSearchInput(serverSearch);
+    }
   }, [serverSearch]);
 
   const applyQuery = useCallback(
@@ -144,6 +151,7 @@ export default function Books({
       // filtering pass null explicitly: the server gives copiesOf precedence
       // over the query, so carrying it there swallowed the new search whole.
       const nextCopiesOf = next.copiesOf === undefined ? copiesOf : next.copiesOf;
+      if (q !== serverSearch) ownSearches.current.add(q);
       if (q) query.q = q;
       if (topics.length > 0) query.topic = topics;
       if (nextPage > 1) query.page = String(nextPage);
