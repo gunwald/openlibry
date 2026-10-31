@@ -1,3 +1,5 @@
+import { CopySiblings } from "@/entities/book";
+
 import { PublicBookType } from "./PublicBookType";
 
 export interface PublicBookDetailType extends PublicBookType {
@@ -9,4 +11,6 @@ export interface PublicBookDetailType extends PublicBookType {
   minAge: string | null;
   maxAge: string | null;
   relatedBooks: PublicBookType[];
+  /** Where this volume sits among the other copies, when there are others. */
+  copies?: CopySiblings | null;
 }

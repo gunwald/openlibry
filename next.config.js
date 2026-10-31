@@ -14,7 +14,10 @@ const nextConfig = {
     return new Date().toLocaleDateString();
   },
   images: {
-    minimumCacheTTL: 0,
+    // Keep optimised variants for at least as long as the cover route's own
+    // max-age. At 0 the optimiser re-resized the full-size originals far more
+    // often than necessary, which is expensive on small hardware.
+    minimumCacheTTL: 300,
     remotePatterns: [
       {
         protocol: "http",

@@ -1,8 +1,21 @@
 import { BookType } from "@/entities/BookType";
-import { addBook, getAllBooks } from "@/entities/book";
+import {
+  addBook,
+  getAllBooks,
+  getPagedBooks,
+  PagedBooks,
+} from "@/entities/book";
 import { prisma } from "@/entities/db";
 import { LogEvents } from "@/lib/logEvents";
 import { businessLogger, errorLogger } from "@/lib/logger";
+import {
+  DEFAULT_PAGE_SIZE,
+  configuredMaxTitles,
+  getBoundedPageSize,
+  getPositiveInt,
+  getQueryValues,
+  getSingleQueryValue,
+} from "@/lib/utils/queryParams";
 import type { NextApiRequest, NextApiResponse } from "next";
 
 type Data = {
@@ -11,7 +24,7 @@ type Data = {
 
 export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse<Data | BookType | Array<BookType>>
+  res: NextApiResponse<Data | BookType | Array<BookType> | PagedBooks>,
 ) {
   switch (req.method) {
     case "POST": {
@@ -25,7 +38,7 @@ export default async function handler(
             bookId: result.id,
             title: result.title,
           },
-          "Book created via API"
+          "Book created via API",
         );
 
         res.status(200).json(result);
@@ -38,7 +51,7 @@ export default async function handler(
             bookId: book.id,
             error: error instanceof Error ? error.message : String(error),
           },
-          "Error creating book"
+          "Error creating book",
         );
         res.status(400).json({ result: "ERROR: " + error });
       }
@@ -47,11 +60,21 @@ export default async function handler(
 
     case "GET": {
       try {
-        const books = (await getAllBooks(prisma)) as Array<BookType>;
-        if (!books) {
-          return res.status(400).json({ result: "ERROR: Book not found" });
-        }
-        res.status(200).json(books);
+        const pageSize = getBoundedPageSize(req.query.pageSize);
+        const page = getPositiveInt(req.query.page) ?? 1;
+        const q = getSingleQueryValue(req.query.q);
+        const topics = getQueryValues(req.query.topic);
+        const copiesOf = getSingleQueryValue(req.query.copiesOf);
+
+        const result = await getPagedBooks(prisma, {
+          page,
+          pageSize: pageSize ?? DEFAULT_PAGE_SIZE,
+          query: q,
+          topics,
+          copiesOf,
+          maxTitles: configuredMaxTitles(),
+        });
+        return res.status(200).json(result);
       } catch (error) {
         errorLogger.error(
           {
@@ -60,7 +83,7 @@ export default async function handler(
             method: "GET",
             error: error instanceof Error ? error.message : String(error),
           },
-          "Error getting all books"
+          "Error getting all books",
         );
         res.status(400).json({ result: "ERROR: " + error });
       }

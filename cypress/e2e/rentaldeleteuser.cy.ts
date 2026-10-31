@@ -24,7 +24,9 @@ describe("Rental cleanup on user deletion", () => {
     cy.get("[data-cy^=user_accordion_details_]").first().should("be.visible");
 
     cy.get("[data-cy^=user_accordion_]")
-      .filter((_, el) => /user_accordion_\d+$/.test(el.getAttribute("data-cy") || ""))
+      .filter((_, el) =>
+        /user_accordion_\d+$/.test(el.getAttribute("data-cy") || ""),
+      )
       .first()
       .invoke("attr", "data-cy")
       .then((dataCy) => {
@@ -51,7 +53,9 @@ describe("Rental cleanup on user deletion", () => {
       });
 
     cy.get("@rentedBookId").then((bookId) => {
-      cy.get(`[data-cy=rental_book_title_${bookId}]`, { timeout: 8000 }).should("be.visible");
+      cy.get(`[data-cy=rental_book_title_${bookId}]`, { timeout: 8000 }).should(
+        "be.visible",
+      );
     });
 
     cy.get("@rentedUserId").then((userId) => {
@@ -72,7 +76,9 @@ describe("Rental cleanup on user deletion", () => {
     cy.get("[data-cy=rental_input_searchbook]").should("be.visible");
 
     cy.get("@rentedBookId").then((bookId) => {
-      cy.get("[data-cy=rental_input_searchbook]").type(bookId as unknown as string);
+      cy.get("[data-cy=rental_input_searchbook]")
+        .type(bookId as unknown as string)
+        .type("{enter}");
       cy.wait(2000);
       // The book must not be deleted along with its (now removed) borrower -
       // it stays in the catalog, just no longer assigned to anyone, and is
