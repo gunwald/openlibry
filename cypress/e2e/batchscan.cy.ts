@@ -1,4 +1,11 @@
 /// <reference types="cypress" />
+function searchBooks(term: string) {
+  cy.get("[data-cy=rental_input_searchbook]")
+    .clear()
+    .type(term)
+    .type("{enter}");
+}
+
 describe("Batch scan book import", () => {
   before(() => {
     cy.resetAndSeed();
@@ -81,28 +88,21 @@ describe("Batch scan book import", () => {
     cy.url().should("include", "/book");
     cy.get("[data-cy=rental_input_searchbook]").should("be.visible");
 
-    cy.get("[data-cy=rental_input_searchbook]").type("Ringe").type("{enter}");
-    cy.get("[data-cy=book_title]", { timeout: 10000 }).should(
+    // Copies of a title share one card, which says how many there are.
+    searchBooks("Ringe");
+    cy.contains("[data-cy=book_card_copycount]", "2 Exemplare", {
+      timeout: 10000,
+    }).should("be.visible");
+
+    searchBooks("Fliegen");
+    cy.contains("[data-cy=book_card_copycount]", "3 Exemplare", {
+      timeout: 10000,
+    }).should("be.visible");
+
+    searchBooks("Herr");
+    cy.get("[data-cy=book_card_copycount]", { timeout: 10000 }).should(
       "have.length.at.least",
       2,
-    );
-
-    cy.get("[data-cy=rental_input_searchbook]")
-      .clear()
-      .type("Fliegen")
-      .type("{enter}");
-    cy.get("[data-cy=book_title]", { timeout: 10000 }).should(
-      "have.length.at.least",
-      3,
-    );
-
-    cy.get("[data-cy=rental_input_searchbook]")
-      .clear()
-      .type("Herr")
-      .type("{enter}");
-    cy.get("[data-cy=book_title]", { timeout: 10000 }).should(
-      "have.length.at.least",
-      5,
     );
   });
 });
